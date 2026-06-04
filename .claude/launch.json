@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "FastAPI Backend",
+      "runtimeExecutable": "C:\\Users\\admin\\scoop\\apps\\python\\current\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+      "port": 8000,
+      "cwd": "backend"
+    },
+    {
+      "name": "OCR Microservice",
+      "runtimeExecutable": "C:\\Users\\admin\\scoop\\apps\\python\\current\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--reload", "--host", "127.0.0.1", "--port", "8001"],
+      "port": 8001,
+      "cwd": "ocr-service"
+    }
+  ]
+}

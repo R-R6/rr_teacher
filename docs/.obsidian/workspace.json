@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Claude：.md",
+                "file": "Claude_skills.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Claude："
+              "title": "Claude_skills"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Claude：.md",
+                "file": "Claude_skills.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Claude： 的反向链接列表"
+              "title": "Claude_skills 的反向链接列表"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Claude：.md",
+                "file": "Claude_skills.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Claude： 的出链列表"
+              "title": "Claude_skills 的出链列表"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Claude：.md",
+                "file": "Claude_skills.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Claude： 的大纲"
+              "title": "Claude_skills 的大纲"
             }
           }
         ]
@@ -185,7 +185,8 @@
   },
   "active": "3eabf197f05a1064",
   "lastOpenFiles": [
-    "Pasted image 20260604175612.png",
-    "Claude：.md"
+    "Claude：.md",
+    "Claude_skills.md",
+    "Pasted image 20260604175612.png"
   ]
 }
