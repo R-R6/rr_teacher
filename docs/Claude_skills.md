@@ -8,31 +8,31 @@
 
 这些是 Claude Code 自带的基础命令，不需要安装。
 
-| 命令 | 说明 | 使用示例 |
-|------|------|---------|
-| `/compact` | 🗜️ 压缩对话上下文，节省 Token | 对话太长时输入 `/compact` |
-| `/clear` | 🧹 清空当前对话历史 | 想重新开始时输入 `/clear` |
-| `/help` | ❓ 查看帮助信息 | `/help` |
-| `/config` | ⚙️ 打开配置设置 | `/config` |
-| `/cost` | 💰 查看当前会话的 Token 用量和费用 | `/cost` |
-| `/doctor` | 🔍 诊断 Claude Code 环境问题 | 出问题时输入 `/doctor` |
-| `/init` | 📝 初始化项目的 CLAUDE.md 文件 | 新项目第一次使用时 |
-| `/memory` | 🧠 编辑 CLAUDE.md 记忆文件 | 要让 Claude 记住项目规范时 |
-| `/login` | 🔑 登录 Anthropic 账号 | `/login` |
-| `/logout` | 🚪 退出登录 | `/logout` |
-| `/status` | 📊 查看当前连接状态 | `/status` |
-| `/vim` | ⌨️ 切换 Vim 编辑模式 | Vim 用户专用 |
-| `/bug` | 🐛 报告 Claude Code 的 Bug | 发现问题时 |
-| `/permissions` | 🔒 查看和管理工具权限 | `/permissions` |
-| `/review` | 📝 审查代码变更 | 代码改完后让 Claude 审查 |
-| `/batch` | 📦 批量处理多个任务 | 并行执行多个独立任务 |
-| `/debug` | 🐛 调试模式，排查问题 | 遇到奇怪行为时 |
-| `/deep-research` | 🔬 深度研究模式 | 需要深入调研某个技术问题 |
-| `/consolidate-memory` | 💾 把对话中的重要信息整理到 CLAUDE.md | 让 Claude 记住你的偏好和规范 |
-| `/context` | 📋 查看当前上下文使用情况 | 看还剩多少 Token 空间 |
-| `/color` | 🎨 调整终端显示颜色 | `/color` |
-| `/schedule` | ⏰ 定时任务调度 | 让 Claude 定时执行某些操作 |
-| `/fewer-permission-prompts` | 🔕 减少权限确认弹窗 | 嫌确认太多时 |
+| 命令                          | 说明                        | 使用示例               |
+| --------------------------- | ------------------------- | ------------------ |
+| `/compact`                  | 🗜️ 压缩对话上下文，节省 Token      | 对话太长时输入 `/compact` |
+| `/clear`                    | 🧹 清空当前对话历史               | 想重新开始时输入 `/clear`  |
+| `/help`                     | ❓ 查看帮助信息                  | `/help`            |
+| `/config`                   | ⚙️ 打开配置设置                 | `/config`          |
+| `/cost`                     | 💰 查看当前会话的 Token 用量和费用    | `/cost`            |
+| `/doctor`                   | 🔍 诊断 Claude Code 环境问题    | 出问题时输入 `/doctor`   |
+| `/init`                     | 📝 初始化项目的 CLAUDE.md 文件    | 新项目第一次使用时          |
+| `/memory`                   | 🧠 编辑 CLAUDE.md 记忆文件      | 要让 Claude 记住项目规范时  |
+| `/login`                    | 🔑 登录 Anthropic 账号        | `/login`           |
+| `/logout`                   | 🚪 退出登录                   | `/logout`          |
+| `/status`                   | 📊 查看当前连接状态               | `/status`          |
+| `/vim`                      | ⌨️ 切换 Vim 编辑模式            | Vim 用户专用           |
+| `/bug`                      | 🐛 报告 Claude Code 的 Bug   | 发现问题时              |
+| `/permissions`              | 🔒 查看和管理工具权限              | `/permissions`     |
+| `/review`                   | 📝 审查代码变更                 | 代码改完后让 Claude 审查   |
+| `/batch`                    | 📦 批量处理多个任务               | 并行执行多个独立任务         |
+| `/debug`                    | 🐛 调试模式，排查问题              | 遇到奇怪行为时            |
+| `/deep-research`            | 🔬 深度研究模式                 | 需要深入调研某个技术问题       |
+| `/consolidate-memory`       | 💾 把对话中的重要信息整理到 CLAUDE.md | 让 Claude 记住你的偏好和规范 |
+| `/context`                  | 📋 查看当前上下文使用情况            | 看还剩多少 Token 空间     |
+| `/color`                    | 🎨 调整终端显示颜色               | `/color`           |
+| `/schedule`                 | ⏰ 定时任务调度                  | 让 Claude 定时执行某些操作  |
+| `/fewer-permission-prompts` | 🔕 减少权限确认弹窗               | 嫌确认太多时             |
 
 ---
 

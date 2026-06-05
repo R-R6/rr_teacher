@@ -234,8 +234,30 @@ async def get_questions(db: AsyncSession):
 - `get_db` 依赖会在请求结束时自动 commit/rollback
 - 避免在循环中触发懒加载，手动构建响应字典而非使用 `model_validate`
 
+## Development Workflow
+
+### 文档更新规则
+
+每次完成**重大功能开发或版本迭代**后，必须更新 `progress.md`：
+
+1. 更新"当前状态"表格的完成度百分比
+2. 将新完成的任务状态从 `❌` 改为 `✅`
+3. 添加新发现的已知问题
+4. 更新"下一步"计划
+5. 在"提交记录"表格追加本次 commit
+
+判断标准：完成一个完整功能模块（如新增页面、新增API、修复重要bug）即为"重大迭代"，需要更新文档。小修小补（改个样式、修个文案）不需要。
+
+### 项目文档结构
+
+| 文件 | 用途 | 更新频率 |
+|------|------|----------|
+| `CLAUDE.md` | Claude Code 项目指引（本文件） | 架构变更时 |
+| `plan.md` | 项目规划规范（技术选型、Roadmap） | 很少改 |
+| `progress.md` | 开发进度追踪 | 每次重大迭代 |
+
 ## Known Issues
 
 1. **WeChat login**: 硬编码占位符 — 需要在 `.env` 中配置 `WECHAT_APPID` 和 `WECHAT_SECRET`
 2. **OCR 微服务**: 独立部署的 HTTP 端点 (`ocr-service/`) 已有骨架，需要部署 Docker 容器
-3. **前端**: 微信小程序尚未开发 (uni-app + Vue3)
+3. **前端**: 微信小程序 12 个页面已完成，待联调测试
