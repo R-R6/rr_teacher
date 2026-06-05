@@ -256,6 +256,13 @@ async def get_questions(db: AsyncSession):
 | `plan.md` | 项目规划规范（技术选型、Roadmap） | 很少改 |
 | `progress.md` | 开发进度追踪 | 每次重大迭代 |
 
+### Git 提交规则
+
+1. **只本地 commit，不主动 push** — 用户告诉我"推送"或"提交到远程"时才执行 `git push`
+2. **小改动攒着** — 完成一个功能模块后统一 commit，不要每次改一行就提一次
+3. **commit message 规范** — 用 `feat:` / `fix:` / `docs:` / `ui:` 前缀，中文描述，简洁明了
+4. **一个功能一个 commit** — 避免一个 commit 里混杂不相关的改动
+
 ## Known Issues
 
 1. **WeChat login**: 硬编码占位符 — 需要在 `.env` 中配置 `WECHAT_APPID` 和 `WECHAT_SECRET`
