@@ -1,0 +1,38 @@
+/* 全局 SCSS 变量 */
+$primary-color: #4A6CF7;
+$primary-light: #6B8AFF;
+$primary-dark: #3451D1;
+$success-color: #22C55E;
+$warning-color: #F59E0B;
+$danger-color: #EF4444;
+$info-color: #6B7280;
+
+$bg-color: #F5F6FA;
+$card-bg: #FFFFFF;
+$text-primary: #1F2937;
+$text-secondary: #6B7280;
+$text-muted: #9CA3AF;
+$border-color: #E5E7EB;
+
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-lg: 24rpx;
+$radius-xl: 32rpx;
+
+$shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+$shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+
+/* 难度标签颜色 */
+$difficulty-1: #22C55E;
+$difficulty-2: #84CC16;
+$difficulty-3: #F59E0B;
+$difficulty-4: #F97316;
+$difficulty-5: #EF4444;
+
+/* 题型颜色 */
+$type-choice: #4A6CF7;
+$type-fill: #8B5CF6;
+$type-experiment: #22C55E;
+$type-calculation: #F59E0B;
+$type-short-answer: #EC4899;

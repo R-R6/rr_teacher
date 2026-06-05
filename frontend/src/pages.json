@@ -1,0 +1,123 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "化学助手",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/ocr/ocr",
+      "style": {
+        "navigationBarTitleText": "拍照识别",
+        "navigationBarBackgroundColor": "#1a1a2e"
+      }
+    },
+    {
+      "path": "pages/ocr-result/ocr-result",
+      "style": {
+        "navigationBarTitleText": "识别结果"
+      }
+    },
+    {
+      "path": "pages/questions/questions",
+      "style": {
+        "navigationBarTitleText": "题库",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/question-edit/question-edit",
+      "style": {
+        "navigationBarTitleText": "编辑题目"
+      }
+    },
+    {
+      "path": "pages/question-detail/question-detail",
+      "style": {
+        "navigationBarTitleText": "题目详情"
+      }
+    },
+    {
+      "path": "pages/papers/papers",
+      "style": {
+        "navigationBarTitleText": "试卷管理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/paper-create/paper-create",
+      "style": {
+        "navigationBarTitleText": "创建试卷"
+      }
+    },
+    {
+      "path": "pages/paper-detail/paper-detail",
+      "style": {
+        "navigationBarTitleText": "试卷详情"
+      }
+    },
+    {
+      "path": "pages/tags/tags",
+      "style": {
+        "navigationBarTitleText": "标签管理"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "高中化学助手",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F6FA",
+    "app-plus": {
+      "background": "#efeff4"
+    }
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#4A6CF7",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/images/tab-home.png",
+        "selectedIconPath": "static/images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/questions/questions",
+        "text": "题库",
+        "iconPath": "static/images/tab-question.png",
+        "selectedIconPath": "static/images/tab-question-active.png"
+      },
+      {
+        "pagePath": "pages/papers/papers",
+        "text": "试卷",
+        "iconPath": "static/images/tab-paper.png",
+        "selectedIconPath": "static/images/tab-paper-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/images/tab-profile.png",
+        "selectedIconPath": "static/images/tab-profile-active.png"
+      }
+    ]
+  }
+}
