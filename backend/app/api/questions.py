@@ -71,9 +71,25 @@ async def get_question(
     )
     tags = [{"id": t.id, "name": t.name, "tag_type": t.tag_type} for t in tag_result.scalars().all()]
 
-    resp = QuestionResp.model_validate(question)
-    resp.tags = tags
-    return ApiResp(data=resp.model_dump())
+    # 手动构建响应，避免懒加载问题
+    resp_data = {
+        "id": question.id,
+        "author_id": question.author_id,
+        "content": question.content,
+        "answer": question.answer,
+        "analysis": question.analysis,
+        "question_type": question.question_type,
+        "difficulty": question.difficulty,
+        "source": question.source,
+        "source_image_url": question.source_image_url,
+        "options": question.options,
+        "is_public": question.is_public,
+        "is_verified": question.is_verified,
+        "tags": tags,
+        "created_at": question.created_at.isoformat() if question.created_at else None,
+        "updated_at": question.updated_at.isoformat() if question.updated_at else None,
+    }
+    return ApiResp(data=resp_data)
 
 
 @router.get("", response_model=ApiResp)

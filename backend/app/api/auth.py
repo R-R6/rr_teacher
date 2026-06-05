@@ -37,7 +37,7 @@ async def register(req: UserRegisterReq, db: AsyncSession = Depends(get_db)):
             school=req.school,
             phone=req.phone,
             is_active=True,
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(user)
         await db.flush()  # 确保生成ID
@@ -83,7 +83,7 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
     # 调用微信API换取openid (生产环境需要配置appid和secret)
     # 此处为简化实现，直接假设已获取到openid
     # ============ 生产环境替换 start ============
-    import httpx
+    # import httpx  # 生产环境启用
 
     # 微信官方接口
     wx_url = "https://api.weixin.qq.com/sns/jscode2session"
@@ -114,9 +114,10 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
             avatar_url=req.avatar_url,
             role="teacher",  # 默认老师，后续可在小程序内选择
             hashed_password=hash_password(openid),  # 微信用户用openid做密码
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(user)
+        await db.flush()  # 确保生成ID
     else:
         # 更新头像昵称
         if req.nickname:
