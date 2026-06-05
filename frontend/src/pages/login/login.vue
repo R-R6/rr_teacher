@@ -5,8 +5,8 @@
       <!-- Logo区域 -->
       <view class="logo-area">
         <view class="logo-icon">🧪</view>
-        <text class="logo-title">高中化学助手</text>
-        <text class="logo-subtitle">智能教学辅助系统</text>
+        <text class="logo-title">小睿化学</text>
+        <text class="logo-subtitle">化学老师的智能助手</text>
       </view>
 
       <!-- 登录表单 -->

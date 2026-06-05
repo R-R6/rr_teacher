@@ -38,10 +38,10 @@
             </view>
           </view>
           <view class="paper-actions">
-            <view class="paper-action" v-if="p.word_url" @tap.stop="downloadWord(p.word_url)">
-              <text>📥 下载Word</text>
+            <view class="paper-action" @tap="exportAndShare(p)">
+              <text>📤 导出Word</text>
             </view>
-            <view class="paper-action danger" @tap.stop="handleDelete(p.id)">
+            <view class="paper-action danger" @tap="handleDelete(p.id)">
               <text>🗑️ 删除</text>
             </view>
           </view>
@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { papersAPI } from '../../utils/api.js'
+import { papersAPI, exportAPI } from '../../utils/api.js'
 import { formatTime } from '../../utils/util.js'
 
 export default {
@@ -108,21 +108,47 @@ export default {
     goCreate() {
       uni.navigateTo({ url: '/pages/paper-create/paper-create' })
     },
-    downloadWord(url) {
-      if (url) {
+    async exportAndShare(paper) {
+      if (this.exporting) return
+      this.exporting = true
+      uni.showLoading({ title: '正在生成Word...' })
+      try {
+        const res = await exportAPI.paperWord(paper.id)
+        uni.hideLoading()
+        const rawUrl = this.getFullUrl(res.test_paper_url || res.answer_sheet_url)
+        // URL编码中文文件名
+        const url = rawUrl.split('/').map((part, i) => i < 3 ? part : encodeURIComponent(part)).join('/')
+        if (!url) {
+          uni.showToast({ title: '导出失败', icon: 'none' })
+          this.exporting = false
+          return
+        }
+        // 下载到临时目录并预览
         uni.downloadFile({
           url,
-          success: (res) => {
-            if (res.statusCode === 200) {
+          success: (dl) => {
+            if (dl.statusCode === 200) {
               uni.openDocument({
-                filePath: res.tempFilePath,
+                filePath: dl.tempFilePath,
                 fileType: 'docx',
                 showMenu: true,
               })
             }
           },
+          fail: () => {
+            uni.showToast({ title: '下载失败', icon: 'none' })
+          },
         })
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: '导出失败', icon: 'none' })
       }
+      this.exporting = false
+    },
+    getFullUrl(url) {
+      if (!url) return ''
+      if (url.startsWith('http')) return url
+      return 'http://127.0.0.1:8000' + url
     },
     handleDelete(id) {
       uni.showModal({

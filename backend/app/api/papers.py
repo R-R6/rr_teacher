@@ -162,12 +162,17 @@ async def list_papers(
 
     items = []
     for p in papers:
+        # 统计每份试卷的题目数
+        q_count = (await db.execute(
+            select(func.count()).select_from(PaperItem).where(PaperItem.paper_id == p.id)
+        )).scalar() or 0
         items.append({
             "id": p.id,
             "title": p.title,
             "subtitle": p.subtitle,
             "total_score": p.total_score,
             "exam_duration": p.exam_duration,
+            "question_count": q_count,
             "word_url": p.word_url,
             "answer_word_url": p.answer_word_url,
             "created_at": p.created_at.isoformat(),
@@ -201,10 +206,25 @@ async def get_paper_detail(
 
     questions = []
     for item, q in rows:
-        q_resp = QuestionResp.model_validate(q)
-        q_data = q_resp.model_dump()
-        q_data["score"] = item.score
-        q_data["sort_order"] = item.sort_order
+        q_data = {
+            "id": q.id,
+            "author_id": q.author_id,
+            "content": q.content,
+            "answer": q.answer,
+            "analysis": q.analysis,
+            "question_type": q.question_type,
+            "difficulty": q.difficulty,
+            "source": q.source,
+            "source_image_url": q.source_image_url,
+            "options": q.options,
+            "is_public": q.is_public,
+            "is_verified": q.is_verified,
+            "tags": [],
+            "created_at": q.created_at.isoformat() if q.created_at else None,
+            "updated_at": q.updated_at.isoformat() if q.updated_at else None,
+            "score": item.score,
+            "sort_order": item.sort_order,
+        }
         questions.append(q_data)
 
     return ApiResp(data={

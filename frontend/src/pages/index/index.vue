@@ -3,7 +3,7 @@
     <!-- 自定义导航栏 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-content">
-        <text class="nav-title">🧪 高中化学助手</text>
+        <text class="nav-title">🧪 小睿化学</text>
         <text class="nav-subtitle">Hi，{{ nickname }}</text>
       </view>
     </view>
