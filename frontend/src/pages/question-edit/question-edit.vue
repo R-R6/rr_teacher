@@ -1,9 +1,9 @@
 <template>
   <view class="edit-page">
-    <view class="form-section">
-      <text class="section-title">题目内容 *</text>
-      <textarea class="form-textarea" v-model="form.content" placeholder="输入题目内容（支持 LaTeX 格式）" :maxlength="-1" />
-    </view>
+      <view class="form-section">
+        <text class="section-title">题目内容 *</text>
+        <textarea class="form-textarea" v-model="form.content" placeholder="输入题目内容（支持 LaTeX 格式）" :maxlength="-1" />
+      </view>
 
     <view class="form-section">
       <text class="section-title">答案 *</text>
@@ -48,6 +48,25 @@
       <input class="form-input" v-model="form.source" placeholder="如：2024年高考全国卷" />
     </view>
 
+    <!-- 标签选择（点击弹出picker） -->
+    <view class="form-section">
+      <text class="section-title">标签</text>
+      <picker :range="tagNameList" mode="multiSelector" @change="onTagChange" @columnchange="onTagColumnChange">
+        <view class="picker-trigger">
+          <text v-if="form.tag_ids.length" class="picker-text">已选 {{ form.tag_ids.length }} 个标签</text>
+          <text v-else class="picker-placeholder">点击选择标签</text>
+          <text class="picker-arrow">▸</text>
+        </view>
+      </picker>
+      <!-- 已选标签展示 -->
+      <view v-if="form.tag_ids.length" class="selected-tags">
+        <view v-for="tag in selectedTagList" :key="tag.id" class="selected-tag" @tap="removeTag(tag.id)">
+          <text>{{ tag.name }}</text>
+          <text class="tag-del"> ✕</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 选项（选择题时显示） -->
     <view class="form-section" v-if="form.question_type === 'choice'">
       <text class="section-title">选项</text>
@@ -70,7 +89,7 @@
 </template>
 
 <script>
-import { questionsAPI } from '../../utils/api.js'
+import { questionsAPI, tagsAPI } from '../../utils/api.js'
 import { QUESTION_TYPES, DIFFICULTY_LEVELS } from '../../utils/util.js'
 
 export default {
@@ -93,6 +112,11 @@ export default {
         ],
         tag_ids: [],
       },
+      allTags: [],
+      tagCategories: ['教材', '知识点', '题型标签', '难度标签'],
+      tagCategoryKeys: ['book', 'knowledge', 'type', 'difficulty'],
+      currentCategoryIndex: 0,
+      currentTagIndex: 0,
       types: QUESTION_TYPES,
     }
   },
@@ -111,6 +135,21 @@ export default {
       this.questionId = options.id
       this.loadQuestion()
     }
+    this.loadTags()
+  },
+  computed: {
+    tagNameList() {
+      const categoryKey = this.tagCategoryKeys[this.currentCategoryIndex] || 'book'
+      const tags = this.allTags.filter(t => t.tag_type === categoryKey)
+      return [this.tagCategories, tags.map(t => t.name)]
+    },
+    currentCategoryTags() {
+      const categoryKey = this.tagCategoryKeys[this.currentCategoryIndex] || 'book'
+      return this.allTags.filter(t => t.tag_type === categoryKey)
+    },
+    selectedTagList() {
+      return this.allTags.filter(t => this.form.tag_ids.includes(t.id))
+    },
   },
   methods: {
     getDiffColor(i) {
@@ -119,6 +158,23 @@ export default {
     getDiffLabel(i) {
       return DIFFICULTY_LEVELS[i]?.label || ''
     },
+    onTagColumnChange(e) {
+      if (e.detail.column === 0) {
+        this.currentCategoryIndex = e.detail.value
+        this.currentTagIndex = 0
+      }
+    },
+    onTagChange(e) {
+      const tagIndex = e.detail.value[1]
+      const tag = this.currentCategoryTags[tagIndex]
+      if (tag && !this.form.tag_ids.includes(tag.id)) {
+        this.form.tag_ids.push(tag.id)
+      }
+    },
+    removeTag(id) {
+      const idx = this.form.tag_ids.indexOf(id)
+      if (idx >= 0) this.form.tag_ids.splice(idx, 1)
+    },
     addOption() {
       const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
       const next = labels[this.form.options.length] || String(this.form.options.length + 1)
@@ -126,6 +182,20 @@ export default {
     },
     removeOption(index) {
       this.form.options.splice(index, 1)
+    },
+    async loadTags() {
+      try {
+        const res = await tagsAPI.list()
+        const flat = []
+        const flatten = (nodes) => {
+          for (const n of nodes) {
+            flat.push(n)
+            if (n.children && n.children.length) flatten(n.children)
+          }
+        }
+        flatten(res || [])
+        this.allTags = flat
+      } catch (e) {}
     },
     async loadQuestion() {
       try {
@@ -173,7 +243,7 @@ export default {
   min-height: 100vh;
   background: #F5F6FA;
   padding: 24rpx;
-  padding-bottom: 160rpx;
+  padding-bottom: 200rpx;
 }
 .form-section {
   margin-bottom: 28rpx;
@@ -273,6 +343,48 @@ export default {
   padding: 16rpx;
   color: #4A6CF7;
   font-size: 26rpx;
+}
+.picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+.picker-text {
+  font-size: 28rpx;
+  color: #4A6CF7;
+  font-weight: 600;
+}
+.picker-placeholder {
+  font-size: 28rpx;
+  color: #9CA3AF;
+}
+.picker-arrow {
+  font-size: 28rpx;
+  color: #D1D5DB;
+}
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+.selected-tag {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  color: #4A6CF7;
+  background: rgba(74,108,247,0.1);
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+}
+.tag-del {
+  font-size: 20rpx;
+  color: #9CA3AF;
+  margin-left: 8rpx;
 }
 .submit-area {
   position: fixed;
