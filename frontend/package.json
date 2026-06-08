@@ -4,7 +4,8 @@
   "description": "高中化学教学辅助系统 - 微信小程序",
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
-    "build:mp-weixin": "uni build -p mp-weixin"
+    "build:mp-weixin": "uni build -p mp-weixin && cp -r cloudfunctions dist/build/mp-weixin/cloudfunctions 2>/dev/null && node -e \"const f=require('fs'),p='dist/build/mp-weixin/project.config.json',c=JSON.parse(f.readFileSync(p));if(!c.cloudfunctionRoot){c.cloudfunctionRoot='cloudfunctions/';f.writeFileSync(p,JSON.stringify(c,null,2))}\" || true",
+    "sync:cloud": "cp -r cloudfunctions dist/build/mp-weixin/cloudfunctions"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5010220260529001",

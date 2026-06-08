@@ -1,6 +1,17 @@
 <script>
 export default {
   onLaunch() {
+    // 初始化微信云开发
+    // #ifdef MP-WEIXIN
+    if (wx && wx.cloud) {
+      wx.cloud.init({
+        env: 'cloud1-d5gls7mdgf0e5f907',
+        traceUser: true,
+      })
+      console.log('[云开发] 初始化完成')
+    }
+    // #endif
+
     const token = uni.getStorageSync('access_token')
     if (!token) {
       uni.reLaunch({ url: '/pages/login/login' })
