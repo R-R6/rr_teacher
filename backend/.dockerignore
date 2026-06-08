@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.cloud.example
+!.env.docker
+*.db
+uploads/
+exports/
+.vscode/
+.idea/
+*.md
+.git
+.gitignore
