@@ -164,7 +164,7 @@
 </template>
 
 <script>
-import { papersAPI, exportAPI } from '../../utils/api.js'
+import { papersAPI, exportAPI, API_BASE } from '../../utils/api.js'
 import { QUESTION_TYPES, DIFFICULTY_LEVELS, latexToUnicode } from '../../utils/util.js'
 
 export default {
@@ -258,7 +258,7 @@ export default {
       return group.reduce((s, q) => s + (q._score || 0), 0)
     },
     toggleGroup(type) {
-      this.expandedGroups[type] = !this.expandedGroups[type]
+      this.$set(this.expandedGroups, type, !this.expandedGroups[type])
     },
     async loadPaper() {
       try {
@@ -273,7 +273,7 @@ export default {
         })
         // 默认展开第一个题型
         const types = [...new Set(this.questions.map(q => q.question_type))]
-        if (types.length) this.expandedGroups[types[0]] = true
+        if (types.length) this.$set(this.expandedGroups, types[0], true)
         this.calcDiffPercents()
       } catch (e) {
         uni.showToast({ title: '加载失败', icon: 'none' })
@@ -285,9 +285,9 @@ export default {
       this.showExportModal = false
       uni.showLoading({ title: '正在生成Word...' })
       try {
-        const res = await exportAPI.paperWord(this.paperId)
+        const res = await exportAPI.paperWord(this.paperId, this.includeAnswer)
         uni.hideLoading()
-        const rawUrl = res.test_paper_url ? (res.test_paper_url.startsWith('http') ? res.test_paper_url : 'http://10.168.3.24:8000' + res.test_paper_url) : ''
+        const rawUrl = res.test_paper_url ? (res.test_paper_url.startsWith('http') ? res.test_paper_url : API_BASE + res.test_paper_url) : ''
         // URL编码中文文件名
         const url = rawUrl.split('/').map((part, i) => i < 3 ? part : encodeURIComponent(part)).join('/')
         if (!url) {

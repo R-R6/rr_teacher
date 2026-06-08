@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { papersAPI, exportAPI } from '../../utils/api.js'
+import { papersAPI, exportAPI, API_BASE } from '../../utils/api.js'
 import { formatTime } from '../../utils/util.js'
 
 export default {
@@ -148,7 +148,7 @@ export default {
     getFullUrl(url) {
       if (!url) return ''
       if (url.startsWith('http')) return url
-      return 'http://127.0.0.1:8000' + url
+      return API_BASE + url
     },
     handleDelete(id) {
       uni.showModal({

@@ -161,18 +161,25 @@ async def list_papers(
     papers = result.scalars().all()
 
     items = []
+    if papers:
+        paper_ids = [p.id for p in papers]
+        count_result = await db.execute(
+            select(PaperItem.paper_id, func.count())
+            .where(PaperItem.paper_id.in_(paper_ids))
+            .group_by(PaperItem.paper_id)
+        )
+        count_map = dict(count_result.all())
+    else:
+        count_map = {}
+
     for p in papers:
-        # 统计每份试卷的题目数
-        q_count = (await db.execute(
-            select(func.count()).select_from(PaperItem).where(PaperItem.paper_id == p.id)
-        )).scalar() or 0
         items.append({
             "id": p.id,
             "title": p.title,
             "subtitle": p.subtitle,
             "total_score": p.total_score,
             "exam_duration": p.exam_duration,
-            "question_count": q_count,
+            "question_count": count_map.get(p.id, 0),
             "word_url": p.word_url,
             "answer_word_url": p.answer_word_url,
             "created_at": p.created_at.isoformat(),
@@ -226,6 +233,22 @@ async def get_paper_detail(
             "sort_order": item.sort_order,
         }
         questions.append(q_data)
+
+    # 批量加载题目标签
+    if questions:
+        q_ids = [q["id"] for q in questions]
+        tag_rows = await db.execute(
+            select(QuestionTagRel.question_id, QuestionTag.id, QuestionTag.name, QuestionTag.tag_type)
+            .join(QuestionTag, QuestionTagRel.tag_id == QuestionTag.id)
+            .where(QuestionTagRel.question_id.in_(q_ids))
+        )
+        tags_map = {}
+        for qid, tid, tname, ttype in tag_rows:
+            if qid not in tags_map:
+                tags_map[qid] = []
+            tags_map[qid].append({"id": tid, "name": tname, "tag_type": ttype})
+        for q_data in questions:
+            q_data["tags"] = tags_map.get(q_data["id"], [])
 
     return ApiResp(data={
         "id": paper.id,

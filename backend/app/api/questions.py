@@ -144,6 +144,20 @@ async def list_questions(
         result = await db.execute(stmt)
         questions = result.scalars().all()
 
+        # 批量加载这些题目的标签
+        tags_map = {}
+        if questions:
+            q_ids = [q.id for q in questions]
+            tag_rows = await db.execute(
+                select(QuestionTagRel.question_id, QuestionTag.id, QuestionTag.name, QuestionTag.tag_type)
+                .join(QuestionTag, QuestionTagRel.tag_id == QuestionTag.id)
+                .where(QuestionTagRel.question_id.in_(q_ids))
+            )
+            for qid, tid, tname, ttype in tag_rows:
+                if qid not in tags_map:
+                    tags_map[qid] = []
+                tags_map[qid].append({"id": tid, "name": tname, "tag_type": ttype})
+
         items = []
         for q in questions:
             # 手动构建响应，避免懒加载问题
@@ -160,7 +174,7 @@ async def list_questions(
                 "options": q.options,
                 "is_public": q.is_public,
                 "is_verified": q.is_verified,
-                "tags": [],  # 简化版本暂不加载标签
+                "tags": tags_map.get(q.id, []),
                 "created_at": q.created_at.isoformat() if q.created_at else None,
                 "updated_at": q.updated_at.isoformat() if q.updated_at else None,
             }

@@ -212,6 +212,8 @@ export default {
   display: flex;
   gap: 20rpx;
   padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   background: #fff;
   box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.06);
 }

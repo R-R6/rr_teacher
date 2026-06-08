@@ -1,6 +1,7 @@
 """
 高中化学教学辅助系统 — FastAPI 入口
 """
+import os
 import time
 import logging
 from collections import defaultdict
@@ -111,7 +112,6 @@ app.add_middleware(
 )
 
 # ─── 静态文件（uploads目录） ───
-import os
 uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
 uploads_dir = os.path.normpath(uploads_dir)
 os.makedirs(uploads_dir, exist_ok=True)

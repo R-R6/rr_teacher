@@ -3,9 +3,10 @@
  * 统一处理请求、响应、错误、Token 刷新
  */
 
-// 开发环境: 真机调试用127.0.0.1(DevTools代理转发), 模拟器用内网IP
-// 生产环境改为域名
-const BASE_URL = 'http://10.168.3.24:8000/api'
+// 后端地址（不含 /api 后缀），真机/模拟器统一用内网IP
+// 生产环境改为域名，只需改这一处
+export const API_BASE = 'http://10.168.3.24:8000'
+const BASE_URL = API_BASE + '/api'
 
 // 请求拦截器 - 自动附加 Token
 function getToken() {
@@ -157,7 +158,10 @@ export const tagsAPI = {
 
 // ========== Export API ==========
 export const exportAPI = {
-  paperWord: (paperId) => request({ url: `/export/paper/${paperId}/word`, method: 'POST' }),
+  paperWord: (paperId, includeAnswer) => {
+    const suffix = includeAnswer === false ? '?include_answer=false' : ''
+    return request({ url: `/export/paper/${paperId}/word${suffix}`, method: 'POST' })
+  },
   questionsWord: (data) => request({ url: '/export/questions/word', method: 'POST', data }),
 }
 
