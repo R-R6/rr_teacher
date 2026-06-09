@@ -98,6 +98,7 @@ export const authAPI = {
   register: (data) => request({ url: '/auth/register', method: 'POST', data }),
   wechatLogin: (data) => request({ url: '/auth/wechat-login', method: 'POST', data }),
   getMe: () => request({ url: '/auth/me' }),
+  updateMe: (data) => request({ url: '/auth/me', method: 'PUT', data }),
   bindPhone: (phone) => request({ url: `/auth/bind-phone?phone=${phone}`, method: 'POST' }),
 }
 

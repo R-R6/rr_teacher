@@ -11,7 +11,8 @@
       <!-- 用户信息卡片 -->
       <view class="user-card">
         <view class="avatar">
-          <text class="avatar-text">{{ (user?.nickname || user?.username || '?')[0] }}</text>
+          <image v-if="user?.avatar_url" class="avatar-img" :src="user.avatar_url" mode="aspectFill" />
+          <text v-else class="avatar-text">{{ (user?.nickname || user?.username || '?')[0] }}</text>
         </view>
         <view class="user-info">
           <text class="user-name">{{ user?.nickname || user?.username || '未登录' }}</text>
@@ -71,7 +72,7 @@
 </template>
 
 <script>
-import { tagsAPI, questionsAPI, papersAPI, ocrAPI } from '../../utils/api.js'
+import { tagsAPI, questionsAPI, papersAPI, ocrAPI, authAPI } from '../../utils/api.js'
 
 export default {
   data() {
@@ -88,11 +89,20 @@ export default {
     this.navHeight = this.statusBarHeight + 44
   },
   onShow() {
-    const info = uni.getStorageSync('user_info')
-    this.user = info ? (typeof info === 'string' ? JSON.parse(info) : info) : null
+    this.loadUserInfo()
     this.loadStats()
   },
   methods: {
+    loadUserInfo() {
+      // 先从本地缓存加载
+      const info = uni.getStorageSync('user_info')
+      this.user = info ? (typeof info === 'string' ? JSON.parse(info) : info) : null
+      // 再从后端刷新（获取最新头像昵称）
+      authAPI.getMe().then(res => {
+        this.user = res
+        uni.setStorageSync('user_info', JSON.stringify(res))
+      }).catch(() => {})
+    },
     async loadStats() {
       try {
         const [q, p, o] = await Promise.all([
@@ -184,6 +194,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.avatar-img {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
 }
 .avatar-text {
   font-size: 40rpx;

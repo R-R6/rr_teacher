@@ -77,29 +77,35 @@
       <!-- 头像昵称授权弹窗 -->
       <view v-if="showProfileModal" class="modal-mask" @tap="skipProfile">
         <view class="modal-content" @tap.stop>
-          <text class="modal-title">完善个人信息</text>
-          <text class="modal-desc">授权后可获得您的微信头像和昵称</text>
+          <!-- 顶部装饰 -->
+          <view class="modal-header-deco"></view>
 
-          <!-- 头像选择（新版API） -->
-          <view class="profile-section">
-            <text class="profile-label">头像</text>
+          <!-- 头像区域 -->
+          <view class="avatar-area">
             <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
               <image v-if="tempAvatarUrl" class="avatar-img" :src="tempAvatarUrl" mode="aspectFill" />
               <view v-else class="avatar-placeholder">
-                <text class="avatar-plus">+</text>
+                <text class="avatar-icon">📷</text>
+                <text class="avatar-hint">选择头像</text>
               </view>
             </button>
+            <view class="avatar-ring"></view>
           </view>
 
-          <!-- 昵称输入（新版API） -->
-          <view class="profile-section">
-            <text class="profile-label">昵称</text>
-            <input class="nickname-input" type="nickname" v-model="tempNickname" placeholder="请输入昵称" @blur="onNicknameBlur" />
+          <text class="modal-title">完善个人信息</text>
+          <text class="modal-desc">设置您的头像和昵称，让同事认识您</text>
+
+          <!-- 昵称输入 -->
+          <view class="nickname-section">
+            <view class="nickname-wrapper">
+              <text class="nickname-label">昵称</text>
+              <input class="nickname-input" type="nickname" v-model="tempNickname" placeholder="请输入昵称" @blur="onNicknameBlur" />
+            </view>
           </view>
 
           <view class="modal-actions">
-            <view class="modal-btn skip" @tap="skipProfile">跳过</view>
-            <view class="modal-btn confirm" @tap="confirmProfile">确认</view>
+            <view class="btn-skip" @tap="skipProfile">稍后再说</view>
+            <view class="btn-confirm" @tap="confirmProfile">完成设置</view>
           </view>
         </view>
       </view>
@@ -221,7 +227,7 @@ export default {
     async confirmProfile() {
       uni.showLoading({ title: '保存中...' })
       try {
-        // 上传头像到云存储（如果有）
+        // 上传头像到云存储
         let avatarUrl = ''
         if (this.tempAvatarUrl) {
           // #ifdef MP-WEIXIN
@@ -239,12 +245,16 @@ export default {
           // #endif
         }
 
-        // 更新用户信息（通过重新登录获取最新 token + 用户信息）
-        // 这里简化处理：直接更新本地存储的用户信息
-        const userInfo = JSON.parse(uni.getStorageSync('user_info') || '{}')
-        if (this.tempNickname) userInfo.nickname = this.tempNickname
-        if (avatarUrl) userInfo.avatar_url = avatarUrl
-        uni.setStorageSync('user_info', JSON.stringify(userInfo))
+        // 调用后端更新用户信息
+        const updateData = {}
+        if (this.tempNickname) updateData.nickname = this.tempNickname
+        if (avatarUrl) updateData.avatar_url = avatarUrl
+
+        if (Object.keys(updateData).length > 0) {
+          const updatedUser = await authAPI.updateMe(updateData)
+          // 更新本地缓存
+          uni.setStorageSync('user_info', JSON.stringify(updatedUser))
+        }
 
         uni.hideLoading()
         this.showProfileModal = false
@@ -253,10 +263,13 @@ export default {
           uni.switchTab({ url: '/pages/index/index' })
         }, 500)
       } catch (e) {
+        console.error('[profile] 保存失败:', e)
         uni.hideLoading()
-        // 上传失败不影响登录
         this.showProfileModal = false
-        uni.switchTab({ url: '/pages/index/index' })
+        uni.showToast({ title: '设置失败，请重试', icon: 'none' })
+        setTimeout(() => {
+          uni.switchTab({ url: '/pages/index/index' })
+        }, 1500)
       }
     },
     skipProfile() {
@@ -433,53 +446,103 @@ export default {
 /* 头像昵称授权弹窗 */
 .modal-mask {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5); z-index: 200;
+  background: rgba(0,0,0,0.45); z-index: 200;
   display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
 }
 .modal-content {
-  width: 600rpx; background: #fff;
-  border-radius: 24rpx; padding: 40rpx;
+  width: 620rpx; background: #fff;
+  border-radius: 28rpx; padding: 0 44rpx 44rpx;
+  position: relative;
+  box-shadow: 0 24rpx 80rpx rgba(0,0,0,0.18);
 }
-.modal-title {
-  display: block; font-size: 34rpx; font-weight: 700; color: #1F2937;
-  text-align: center; margin-bottom: 8rpx;
+.modal-header-deco {
+  height: 8rpx; margin: 0 -44rpx 0;
+  background: linear-gradient(135deg, #4A6CF7, #7C5CFC);
+  border-radius: 28rpx 28rpx 0 0;
 }
-.modal-desc {
-  display: block; font-size: 24rpx; color: #9CA3AF;
-  text-align: center; margin-bottom: 32rpx;
+
+/* 头像区域 */
+.avatar-area {
+  display: flex; justify-content: center;
+  margin-top: -52rpx; margin-bottom: 16rpx;
+  position: relative;
+  z-index: 1;
 }
-.profile-section {
-  margin-bottom: 24rpx;
-}
-.profile-label {
-  display: block; font-size: 26rpx; color: #374151; margin-bottom: 12rpx;
+.avatar-ring {
+  position: absolute; top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 148rpx; height: 148rpx;
+  border-radius: 50%;
+  border: 6rpx solid #fff;
+  box-shadow: 0 4rpx 20rpx rgba(74,108,247,0.25);
+  pointer-events: none;
+  z-index: 2;
 }
 .avatar-btn {
-  width: 120rpx; height: 120rpx; border-radius: 50%;
-  overflow: hidden; background: #F5F6FA; border: 2rpx dashed #D1D5DB;
+  width: 136rpx; height: 136rpx;
+  border-radius: 50%; overflow: hidden;
+  background: linear-gradient(135deg, #E8EEFF, #F0F0FF);
   display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 4rpx;
   padding: 0; margin: 0; line-height: normal;
+  position: relative; z-index: 3;
+  border: none;
 }
 .avatar-btn::after { border: none; }
 .avatar-img {
-  width: 120rpx; height: 120rpx; border-radius: 50%;
+  width: 132rpx; height: 132rpx; border-radius: 50%;
 }
 .avatar-placeholder {
-  width: 120rpx; height: 120rpx; display: flex;
+  display: flex; flex-direction: column;
   align-items: center; justify-content: center;
 }
-.avatar-plus { font-size: 48rpx; color: #D1D5DB; }
+.avatar-icon { font-size: 40rpx; margin-bottom: 2rpx; }
+.avatar-hint { font-size: 18rpx; color: #9CA3AF; }
+
+/* 标题 */
+.modal-title {
+  display: block; font-size: 36rpx; font-weight: 700;
+  color: #1F2937; text-align: center;
+  margin-bottom: 8rpx; margin-top: 8rpx;
+}
+.modal-desc {
+  display: block; font-size: 24rpx; color: #9CA3AF;
+  text-align: center; margin-bottom: 36rpx;
+}
+
+/* 昵称输入 */
+.nickname-section {
+  margin-bottom: 32rpx;
+}
+.nickname-wrapper {
+  background: #F5F6FA; border-radius: 16rpx;
+  padding: 24rpx; position: relative;
+}
+.nickname-label {
+  display: block; font-size: 22rpx; color: #9CA3AF;
+  margin-bottom: 8rpx;
+}
 .nickname-input {
-  width: 100%; height: 80rpx; background: #F5F6FA;
-  border-radius: 12rpx; padding: 0 24rpx; font-size: 28rpx;
+  width: 100%; height: 72rpx; font-size: 30rpx;
+  color: #1F2937; font-weight: 500;
 }
+
+/* 按钮 */
 .modal-actions {
-  display: flex; gap: 20rpx; margin-top: 32rpx;
+  display: flex; gap: 16rpx;
 }
-.modal-btn {
-  flex: 1; text-align: center; padding: 20rpx 0;
-  border-radius: 12rpx; font-size: 28rpx; font-weight: 600;
+.btn-skip {
+  flex: 1; text-align: center; padding: 24rpx 0;
+  border-radius: 16rpx; font-size: 28rpx; font-weight: 500;
+  color: #6B7280; background: #F3F4F6;
+  &:active { background: #E5E7EB; }
 }
-.modal-btn.skip { background: #F3F4F6; color: #6B7280; }
-.modal-btn.confirm { background: #4A6CF7; color: #fff; }
+.btn-confirm {
+  flex: 1.5; text-align: center; padding: 24rpx 0;
+  border-radius: 16rpx; font-size: 28rpx; font-weight: 600;
+  color: #fff; background: linear-gradient(135deg, #4A6CF7, #7C5CFC);
+  box-shadow: 0 8rpx 24rpx rgba(74,108,247,0.3);
+  &:active { opacity: 0.9; transform: scale(0.98); }
+}
 </style>

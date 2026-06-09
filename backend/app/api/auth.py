@@ -2,7 +2,9 @@
 用户认证模块: 注册 / 登录 / 微信登录
 """
 from datetime import datetime, timezone
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import httpx
@@ -154,10 +156,36 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
     return ApiResp(data=token_data.model_dump())
 
 
+class UpdateProfileReq(BaseModel):
+    """更新用户信息请求"""
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    school: Optional[str] = None
+
+
 @router.get("/me", response_model=ApiResp)
 async def get_my_info(current_user: User = Depends(get_current_user)):
     """获取当前登录用户信息"""
     return ApiResp(data=UserInfoResp.model_validate(current_user).model_dump())
+
+
+@router.put("/me", response_model=ApiResp)
+async def update_my_info(
+    req: UpdateProfileReq,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新当前用户信息（昵称、头像、学校）"""
+    if req.nickname is not None:
+        current_user.nickname = req.nickname
+    if req.avatar_url is not None:
+        current_user.avatar_url = req.avatar_url
+    if req.school is not None:
+        current_user.school = req.school
+
+    # 返回更新后的用户信息
+    user_info = UserInfoResp.model_validate(current_user)
+    return ApiResp(message="更新成功", data=user_info.model_dump())
 
 
 @router.post("/refresh", response_model=ApiResp)
