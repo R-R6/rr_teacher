@@ -43,6 +43,15 @@
         </view>
       </view>
 
+      <!-- 学生刷题入口 -->
+      <view class="practice-entry" @tap="goTo('/pages/practice/practice')">
+        <view class="practice-left">
+          <text class="practice-title">📝 开始刷题</text>
+          <text class="practice-desc">进入学生练习模式</text>
+        </view>
+        <text class="practice-arrow">›</text>
+      </view>
+
       <!-- 最近题目 -->
       <view class="section-header">
         <text class="section-title">最近题目</text>
@@ -335,4 +344,14 @@ export default {
 }
 .action-icon { display: block; font-size: 36rpx; margin-bottom: 8rpx; }
 .action-text { font-size: 24rpx; color: #374151; }
+.practice-entry {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 0 24rpx 20rpx; background: linear-gradient(135deg, #2B6CB0, #3182CE);
+  border-radius: 20rpx; padding: 32rpx 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(43,108,176,0.3);
+  &:active { opacity: 0.9; }
+}
+.practice-title { display: block; font-size: 32rpx; font-weight: 700; color: #fff; }
+.practice-desc { display: block; font-size: 24rpx; color: rgba(255,255,255,0.75); margin-top: 4rpx; }
+.practice-arrow { font-size: 36rpx; color: rgba(255,255,255,0.6); }
 </style>

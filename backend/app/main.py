@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, questions, ocr, papers, tags, export
+from app.api import auth, questions, ocr, papers, tags, export, mistakes, practice
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +125,8 @@ app.include_router(ocr.router, prefix="/api/ocr", tags=["OCR识别"])
 app.include_router(papers.router, prefix="/api/papers", tags=["试卷管理"])
 app.include_router(tags.router, prefix="/api/tags", tags=["标签管理"])
 app.include_router(export.router, prefix="/api/export", tags=["Word导出"])
+app.include_router(mistakes.router, prefix="/api/mistakes", tags=["错题本"])
+app.include_router(practice.router, prefix="/api/practice", tags=["刷题练习"])
 
 
 @app.get("/", include_in_schema=False)

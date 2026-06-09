@@ -159,6 +159,24 @@ export const tagsAPI = {
   seed: () => request({ url: '/tags/seed', method: 'POST' }),
 }
 
+// ========== Practice API (学生端) ==========
+export const practiceAPI = {
+  getQuestions: (params) => request({ url: '/practice/questions', data: params }),
+  submitAnswer: (data) => request({ url: '/practice/submit', method: 'POST', data }),
+  getStats: () => request({ url: '/practice/stats' }),
+  getTrend: (days) => request({ url: `/practice/trend?days=${days || 7}` }),
+}
+
+// ========== Mistakes API (错题本) ==========
+export const mistakesAPI = {
+  list: (params) => request({ url: '/mistakes', data: params }),
+  add: (questionId) => request({ url: '/mistakes', method: 'POST', data: { question_id: questionId } }),
+  markMastered: (id) => request({ url: `/mistakes/${id}/master`, method: 'PUT' }),
+  delete: (id) => request({ url: `/mistakes/${id}`, method: 'DELETE' }),
+  updateNotes: (id, notes) => request({ url: `/mistakes/${id}/notes`, method: 'PUT', data: { notes } }),
+  getStats: () => request({ url: '/mistakes/stats' }),
+}
+
 // ========== Export API ==========
 export const exportAPI = {
   paperWord: (paperId, includeAnswer) => {

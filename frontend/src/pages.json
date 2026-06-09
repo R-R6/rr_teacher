@@ -77,6 +77,41 @@
         "navigationBarTitleText": "我的",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/practice/practice",
+      "style": {
+        "navigationBarTitleText": "刷题练习",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/practice/question",
+      "style": {
+        "navigationBarTitleText": "答题中",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/practice/result",
+      "style": {
+        "navigationBarTitleText": "练习结果",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/mistakes/list",
+      "style": {
+        "navigationBarTitleText": "错题本",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/report/index",
+      "style": {
+        "navigationBarTitleText": "学习报告",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Docker.md",
+                "file": "Claude_skills.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Docker"
+              "title": "Claude_skills"
             }
           }
         ],
@@ -228,8 +228,11 @@
   },
   "active": "6546ad16bcb9ac4b",
   "lastOpenFiles": [
-    "Claude_skills.md",
+    "findings.md",
+    "findings.md.tmp.32640.6eecc34f3b58",
     "Docker.md",
+    "MySQL_and_Cloud.md",
+    "Claude_skills.md",
     "Docker.md.tmp.25352.6f7bb5df596b",
     "Claude：.md",
     "Pasted image 20260604175612.png"
