@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 20  # 最大20MB
     EXPORT_DIR: str = "./exports"
 
+    # ── 微信小程序 ──
+    WECHAT_APPID: str = ""
+    WECHAT_SECRET: str = ""
+
     # ── 安全配置 ──
     # Swagger API 文档开关 (生产环境建议关闭)
     SWAGGER_ENABLED: bool = True

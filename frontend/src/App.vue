@@ -1,6 +1,8 @@
 <script>
+import { authAPI } from './utils/api.js'
+
 export default {
-  onLaunch() {
+  async onLaunch() {
     // 初始化微信云开发
     // #ifdef MP-WEIXIN
     if (wx && wx.cloud) {
@@ -8,14 +10,27 @@ export default {
         env: 'cloud1-d5gls7mdgf0e5f907',
         traceUser: true,
       })
-      console.log('[云开发] 初始化完成')
     }
     // #endif
 
+    // 静默登录：检查本地 token 是否有效
     const token = uni.getStorageSync('access_token')
-    if (!token) {
-      uni.reLaunch({ url: '/pages/login/login' })
+    if (token) {
+      try {
+        // 验证 token 是否过期
+        const userInfo = await authAPI.getMe()
+        // token 有效，更新本地用户信息
+        uni.setStorageSync('user_info', JSON.stringify(userInfo))
+        return // 已登录，不跳转
+      } catch (e) {
+        // token 过期，清除本地数据
+        uni.removeStorageSync('access_token')
+        uni.removeStorageSync('refresh_token')
+        uni.removeStorageSync('user_info')
+      }
     }
+    // 未登录，跳转到登录页
+    uni.reLaunch({ url: '/pages/login/login' })
   },
   onShow() {},
   onHide() {}

@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import httpx
 
 from app.database import get_db
 from app.models import User
+from app.config import settings
 from app.schemas import UserRegisterReq, UserLoginReq, WechatLoginReq, UserInfoResp, TokenResp, ApiResp
 from app.auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_user
 
@@ -78,29 +80,43 @@ async def login(req: UserLoginReq, db: AsyncSession = Depends(get_db)):
 async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
     """
     微信小程序登录
-    通过wx.login()返回的code换取openid，自动创建或绑定用户
+    通过wx.login()返回的code调用jscode2session换取openid
     """
-    # 调用微信API换取openid (生产环境需要配置appid和secret)
-    # 此处为简化实现，直接假设已获取到openid
-    # ============ 生产环境替换 start ============
-    # import httpx  # 生产环境启用
+    # 检查微信配置
+    if not settings.WECHAT_APPID or not settings.WECHAT_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail="微信登录未配置，请设置 WECHAT_APPID 和 WECHAT_SECRET 环境变量"
+        )
 
-    # 微信官方接口
+    # 调用微信官方接口换取 openid + session_key
     wx_url = "https://api.weixin.qq.com/sns/jscode2session"
-    # params = {
-    #     "appid": settings.WECHAT_APPID,
-    #     "secret": settings.WECHAT_SECRET,
-    #     "js_code": req.code,
-    #     "grant_type": "authorization_code",
-    # }
-    # async with httpx.AsyncClient() as client:
-    #     wx_resp = await client.get(wx_url, params=params)
-    #     wx_data = wx_resp.json()
-    # openid = wx_data.get("openid")
+    params = {
+        "appid": settings.WECHAT_APPID,
+        "secret": settings.WECHAT_SECRET,
+        "js_code": req.code,
+        "grant_type": "authorization_code",
+    }
 
-    # 临时：用code作为openid(生产环境务必替换)
-    openid = f"wechat_{req.code}"
-    # ============ 生产环境替换 end ============
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            wx_resp = await client.get(wx_url, params=params)
+            wx_data = wx_resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"调用微信接口失败: {str(e)}")
+
+    # 检查微信返回是否成功
+    openid = wx_data.get("openid")
+    if not openid:
+        errcode = wx_data.get("errcode", "unknown")
+        errmsg = wx_data.get("errmsg", "未知错误")
+        raise HTTPException(
+            status_code=401,
+            detail=f"微信登录失败: [{errcode}] {errmsg}"
+        )
+
+    # session_key 可用于后续解密（如获取手机号）
+    # session_key = wx_data.get("session_key")
 
     # 查找或创建用户
     result = await db.execute(select(User).where(User.openid == openid))
@@ -119,7 +135,7 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
         db.add(user)
         await db.flush()  # 确保生成ID
     else:
-        # 更新头像昵称
+        # 更新头像昵称（如果本次登录有提供）
         if req.nickname:
             user.nickname = req.nickname
         if req.avatar_url:
@@ -160,3 +176,28 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(ge
 
     access_token, _ = create_access_token(user.id, user.role)
     return ApiResp(data={"access_token": access_token})
+
+
+@router.post("/bind-phone", response_model=ApiResp)
+async def bind_phone(
+    phone: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    绑定手机号（预留接口）
+    前端通过 <button open-type="getPhoneNumber"> 获取 encryptedData + iv
+    后端用 session_key 解密得到手机号
+    """
+    # TODO: 实现阶段需要传入 encryptedData 和 iv，用 session_key 解密
+    # 目前简化为直接传手机号
+
+    # 检查手机号是否已被其他用户绑定
+    result = await db.execute(
+        select(User).where(User.phone == phone, User.id != current_user.id)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="该手机号已被其他账号绑定")
+
+    current_user.phone = phone
+    return ApiResp(message="手机号绑定成功")
