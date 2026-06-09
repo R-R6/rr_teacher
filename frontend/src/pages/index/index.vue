@@ -108,8 +108,12 @@ export default {
     this.loadRecentQuestions()
   },
   onLoad() {
-    const sysInfo = uni.getSystemInfoSync()
-    this.statusBarHeight = sysInfo.statusBarHeight || 20
+    try {
+      const sysInfo = uni.getSystemInfoSync()
+      this.statusBarHeight = sysInfo.statusBarHeight || 20
+    } catch (e) {
+      this.statusBarHeight = 20
+    }
     this.navHeight = this.statusBarHeight + 44
   },
   methods: {

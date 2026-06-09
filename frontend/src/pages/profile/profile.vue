@@ -8,8 +8,8 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <!-- 用户信息卡片 -->
-      <view class="user-card">
+      <!-- 用户信息卡片（点击编辑） -->
+      <view class="user-card" @tap="showEditModal = true">
         <view class="avatar">
           <image v-if="user?.avatar_url" class="avatar-img" :src="user.avatar_url" mode="aspectFill" />
           <text v-else class="avatar-text">{{ (user?.nickname || user?.username || '?')[0] }}</text>
@@ -17,10 +17,11 @@
         <view class="user-info">
           <text class="user-name">{{ user?.nickname || user?.username || '未登录' }}</text>
           <view class="user-role" :class="user?.role">
-            {{ user?.role === 'teacher' ? '👨‍🏫 教师' : '🎓 学生' }}
+            {{ user?.role === 'teacher' ? '教师' : '学生' }}
           </view>
           <text class="user-school" v-if="user?.school">{{ user.school }}</text>
         </view>
+        <text class="edit-arrow">编辑 ›</text>
       </view>
 
       <!-- 统计 -->
@@ -68,6 +69,33 @@
         <text>退出登录</text>
       </view>
     </scroll-view>
+
+    <!-- 编辑个人资料弹窗 -->
+    <view v-if="showEditModal" class="sheet-mask" @tap="showEditModal = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-handle"></view>
+        <text class="sheet-title">编辑个人资料</text>
+
+        <view class="profile-avatar-wrap">
+          <button class="avatar-pick-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+            <image v-if="editAvatarUrl" class="avatar-preview" :src="editAvatarUrl" mode="aspectFill" />
+            <image v-else-if="user?.avatar_url" class="avatar-preview" :src="user.avatar_url" mode="aspectFill" />
+            <view v-else class="avatar-empty">
+              <text class="avatar-plus">+</text>
+            </view>
+          </button>
+          <text class="avatar-label">点击更换头像</text>
+        </view>
+
+        <view class="field" style="margin-top: 28rpx;">
+          <input class="field-input" type="nickname" v-model="editNickname" :placeholder="user?.nickname || '请输入昵称'" placeholder-class="placeholder" />
+        </view>
+
+        <view class="sheet-btn-primary" @tap="saveProfile">
+          <text class="btn-text">保存</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -81,11 +109,18 @@ export default {
       navHeight: 0,
       user: null,
       stats: { questions: 0, papers: 0, ocr: 0 },
+      showEditModal: false,
+      editNickname: '',
+      editAvatarUrl: '',
     }
   },
   onLoad() {
-    const sysInfo = uni.getSystemInfoSync()
-    this.statusBarHeight = sysInfo.statusBarHeight || 20
+    try {
+      const sysInfo = uni.getSystemInfoSync()
+      this.statusBarHeight = sysInfo.statusBarHeight || 20
+    } catch (e) {
+      this.statusBarHeight = 20
+    }
     this.navHeight = this.statusBarHeight + 44
   },
   onShow() {
@@ -153,6 +188,42 @@ export default {
         },
       })
     },
+    onChooseAvatar(e) {
+      if (e.detail.avatarUrl) this.editAvatarUrl = e.detail.avatarUrl
+    },
+    async saveProfile() {
+      uni.showLoading({ title: '保存中...' })
+      try {
+        let avatarUrl = ''
+        if (this.editAvatarUrl) {
+          // #ifdef MP-WEIXIN
+          if (wx && wx.cloud) {
+            const r = await new Promise((res, rej) => {
+              wx.cloud.uploadFile({
+                cloudPath: `avatars/${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`,
+                filePath: this.editAvatarUrl, success: res, fail: rej
+              })
+            })
+            avatarUrl = r.fileID
+          }
+          // #endif
+        }
+        const updateData = {}
+        if (this.editNickname) updateData.nickname = this.editNickname
+        if (avatarUrl) updateData.avatar_url = avatarUrl
+        if (Object.keys(updateData).length > 0) {
+          const updatedUser = await authAPI.updateMe(updateData)
+          uni.setStorageSync('user_info', JSON.stringify(updatedUser))
+          this.user = updatedUser
+        }
+        uni.hideLoading()
+        this.showEditModal = false
+        uni.showToast({ title: '保存成功', icon: 'success' })
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: '保存失败', icon: 'none' })
+      }
+    },
   },
 }
 </script>
@@ -217,6 +288,11 @@ export default {
   margin-bottom: 4rpx;
 }
 .user-school { display: block; font-size: 22rpx; opacity: 0.8; }
+.edit-arrow {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.7);
+  flex-shrink: 0;
+}
 .stats-card {
   display: flex;
   background: #fff;
@@ -259,4 +335,59 @@ export default {
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
   &:active { background: #FEF2F2; }
 }
+
+/* 编辑弹窗 */
+.sheet-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+}
+.sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 20rpx 40rpx;
+  padding-bottom: calc(60rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
+  z-index: 201;
+}
+.sheet-handle {
+  width: 60rpx; height: 8rpx;
+  background: #E2E8F0; border-radius: 4rpx;
+  margin: 0 auto 24rpx;
+}
+.sheet-title {
+  display: block; font-size: 34rpx; font-weight: 700;
+  color: #1E293B; text-align: center; margin-bottom: 28rpx;
+}
+.profile-avatar-wrap {
+  display: flex; flex-direction: column; align-items: center;
+}
+.avatar-pick-btn {
+  width: 144rpx; height: 144rpx; border-radius: 50%;
+  background: #F1F5F9; display: flex; align-items: center; justify-content: center;
+  padding: 0; margin: 0; line-height: normal;
+  border: 3rpx dashed #CBD5E1;
+}
+.avatar-pick-btn::after { border: none; }
+.avatar-preview { width: 144rpx; height: 144rpx; border-radius: 50%; }
+.avatar-empty { display: flex; align-items: center; justify-content: center; width: 144rpx; height: 144rpx; }
+.avatar-plus { font-size: 56rpx; color: #94A3B8; font-weight: 300; }
+.avatar-label { font-size: 22rpx; color: #94A3B8; margin-top: 12rpx; }
+.field {
+  background: #F1F5F9; border-radius: 14rpx;
+  padding: 0 28rpx; height: 92rpx;
+  display: flex; align-items: center; margin-bottom: 20rpx;
+}
+.field-input { flex: 1; height: 92rpx; font-size: 28rpx; color: #1E293B; }
+.placeholder { color: #94A3B8; font-size: 28rpx; }
+.sheet-btn-primary {
+  background: linear-gradient(135deg, #4A6CF7, #6366F1);
+  border-radius: 14rpx; height: 88rpx;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 12rpx;
+  &:active { opacity: 0.85; }
+}
+.btn-text { color: #fff; font-size: 30rpx; font-weight: 600; }
 </style>

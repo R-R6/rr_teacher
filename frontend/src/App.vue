@@ -5,11 +5,15 @@ export default {
   async onLaunch() {
     // 初始化微信云开发
     // #ifdef MP-WEIXIN
-    if (wx && wx.cloud) {
-      wx.cloud.init({
-        env: 'cloud1-d5gls7mdgf0e5f907',
-        traceUser: true,
-      })
+    try {
+      if (wx && wx.cloud) {
+        wx.cloud.init({
+          env: 'cloud1-d5gls7mdgf0e5f907',
+          traceUser: true,
+        })
+      }
+    } catch (e) {
+      console.warn('[云开发] 初始化跳过:', e.message)
     }
     // #endif
 
@@ -17,16 +21,20 @@ export default {
     const token = uni.getStorageSync('access_token')
     if (token) {
       try {
-        // 验证 token 是否过期
+        // 验证 token 是否过期（超时10秒，云托管冷启动可能较慢）
         const userInfo = await authAPI.getMe()
         // token 有效，更新本地用户信息
         uni.setStorageSync('user_info', JSON.stringify(userInfo))
         return // 已登录，不跳转
       } catch (e) {
-        // token 过期，清除本地数据
-        uni.removeStorageSync('access_token')
-        uni.removeStorageSync('refresh_token')
-        uni.removeStorageSync('user_info')
+        // 只有 401（token 真正过期）才清除
+        // 网络超时、服务器500等不清理，保留本地缓存
+        if (e.code === 401) {
+          uni.removeStorageSync('access_token')
+          uni.removeStorageSync('refresh_token')
+          uni.removeStorageSync('user_info')
+        }
+        // 其他错误（超时等）：保留 token，使用本地缓存的用户信息
       }
     }
     // 未登录，跳转到登录页
