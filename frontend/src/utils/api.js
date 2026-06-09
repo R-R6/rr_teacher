@@ -3,9 +3,10 @@
  * 统一处理请求、响应、错误、Token 刷新
  */
 
-// 后端地址（不含 /api 后缀），真机/模拟器统一用内网IP
-// 生产环境改为域名，只需改这一处
-export const API_BASE = 'http://10.168.3.24:8000'
+// 后端地址（不含 /api 后缀）
+// 开发环境: http://10.168.3.24:8000（本机后端）
+// 生产环境: 云托管域名
+export const API_BASE = 'https://chem-backend-268016-4-1440725000.sh.run.tcloudbase.com'
 const BASE_URL = API_BASE + '/api'
 
 // 请求拦截器 - 自动附加 Token

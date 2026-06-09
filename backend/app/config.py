@@ -5,6 +5,7 @@
 import os
 import secrets
 from typing import Optional
+from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings
 
 
@@ -29,13 +30,16 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         if self.DB_TYPE == "sqlite":
             return "sqlite+aiosqlite:///./chem_teacher.db"
-        return f"mysql+aiomysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # 对密码进行 URL 编码，防止 @ 等特殊字符破坏连接字符串
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+aiomysql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property
     def database_url_sync(self) -> str:
         if self.DB_TYPE == "sqlite":
             return "sqlite:///./chem_teacher.db"
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+pymysql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     # ── Redis ──
     REDIS_URL: str = "redis://127.0.0.1:6379/0"
