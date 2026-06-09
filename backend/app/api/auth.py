@@ -7,12 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import secrets
 import httpx
 
 from app.database import get_db
 from app.models import User
 from app.config import settings
-from app.schemas import UserRegisterReq, UserLoginReq, WechatLoginReq, UserInfoResp, TokenResp, ApiResp
+from app.schemas import UserRegisterReq, UserLoginReq, WechatLoginReq, UpdateProfileReq, UserInfoResp, TokenResp, ApiResp
 from app.auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_user
 
 router = APIRouter()
@@ -49,10 +50,8 @@ async def register(req: UserRegisterReq, db: AsyncSession = Depends(get_db)):
         return ApiResp(message="注册成功", data={"user_id": user.id})
     except HTTPException:
         raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="注册失败，请稍后重试")
 
 
 @router.post("/login", response_model=ApiResp)
@@ -104,8 +103,8 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
         async with httpx.AsyncClient(timeout=10.0) as client:
             wx_resp = await client.get(wx_url, params=params)
             wx_data = wx_resp.json()
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"调用微信接口失败: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信服务暂时不可用，请稍后重试")
 
     # 检查微信返回是否成功
     openid = wx_data.get("openid")
@@ -131,7 +130,7 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
             nickname=req.nickname or f"微信用户{openid[-4:]}",
             avatar_url=req.avatar_url,
             role="teacher",  # 默认老师，后续可在小程序内选择
-            hashed_password=hash_password(openid),  # 微信用户用openid做密码
+            hashed_password=hash_password(secrets.token_hex(32)),  # 微信用户用随机密码（不可通过密码登录）
             created_at=datetime.now(timezone.utc),
         )
         db.add(user)
@@ -156,11 +155,6 @@ async def wechat_login(req: WechatLoginReq, db: AsyncSession = Depends(get_db)):
     return ApiResp(data=token_data.model_dump())
 
 
-class UpdateProfileReq(BaseModel):
-    """更新用户信息请求"""
-    nickname: Optional[str] = None
-    avatar_url: Optional[str] = None
-    school: Optional[str] = None
 
 
 @router.get("/me", response_model=ApiResp)
@@ -182,6 +176,8 @@ async def update_my_info(
         current_user.avatar_url = req.avatar_url
     if req.school is not None:
         current_user.school = req.school
+
+    await db.flush()  # 持久化到数据库
 
     # 返回更新后的用户信息
     user_info = UserInfoResp.model_validate(current_user)

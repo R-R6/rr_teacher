@@ -55,6 +55,13 @@ class TokenResp(BaseModel):
     user: UserInfoResp
 
 
+class UpdateProfileReq(BaseModel):
+    """更新用户信息请求"""
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    school: Optional[str] = None
+
+
 # ────────────────────────── 题目相关 ──────────────────────────
 
 class QuestionOption(BaseModel):
