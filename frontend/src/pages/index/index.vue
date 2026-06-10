@@ -43,15 +43,6 @@
         </view>
       </view>
 
-      <!-- 学生刷题入口 -->
-      <view class="practice-entry" @tap="goTo('/pages/practice/practice')">
-        <view class="practice-left">
-          <text class="practice-title">📝 开始刷题</text>
-          <text class="practice-desc">进入学生练习模式</text>
-        </view>
-        <text class="practice-arrow">›</text>
-      </view>
-
       <!-- 最近题目 -->
       <view class="section-header">
         <text class="section-title">最近题目</text>
