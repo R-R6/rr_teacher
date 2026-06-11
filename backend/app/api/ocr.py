@@ -42,6 +42,7 @@ async def recognize_question(
     with open(local_path, "wb") as f:
         f.write(content)
 
+    cropped_paths = []  # 需要清理的临时文件列表
     try:
         # 1. 上传原图到COS
         cos_key = f"ocr/{current_user.id}/{uuid.uuid4().hex}.{ext}"
@@ -52,9 +53,11 @@ async def recognize_question(
 
         # 3. 上传裁剪出的图片到COS
         figure_images = []
+        cropped_paths = []  # 记录需要清理的临时文件
         for img_info in ocr_result.get("images", []):
             cropped_path = img_info.get("cropped_path", "")
             if cropped_path and os.path.exists(cropped_path):
+                cropped_paths.append(cropped_path)
                 img_cos_key = f"ocr/{current_user.id}/fig_{uuid.uuid4().hex}.jpg"
                 img_url = await upload_to_cos(cropped_path, img_cos_key)
                 figure_images.append({
@@ -63,8 +66,6 @@ async def recognize_question(
                     "image_type": img_info.get("type", "figure"),
                     "bbox": img_info.get("bbox"),
                 })
-                if os.path.exists(cropped_path):
-                    os.remove(cropped_path)
 
         # 4. 创建OCR记录
         record = OcrRecord(
@@ -104,6 +105,10 @@ async def recognize_question(
     finally:
         if os.path.exists(local_path):
             os.remove(local_path)
+        # 清理裁剪出的临时图片
+        for p in cropped_paths:
+            if os.path.exists(p):
+                os.remove(p)
 
 
 @router.post("/correct", response_model=ApiResp)

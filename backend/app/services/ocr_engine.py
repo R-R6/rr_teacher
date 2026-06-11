@@ -4,6 +4,7 @@ OCR 识别引擎服务
 """
 import json
 import logging
+import uuid
 import httpx
 from app.config import settings
 
@@ -78,7 +79,8 @@ async def _recognize_via_p2t_local(image_path: str) -> dict:
 
     latex_parts = []
     text_parts = []
-    figure_images = []  # 裁剪出的图片信息
+    figure_images = []
+    parsed_elements = []  # 用独立列表存储解析结果
     img_counter = 0
 
     # Pix2Text 返回的是对象列表
@@ -89,14 +91,18 @@ async def _recognize_via_p2t_local(image_path: str) -> dict:
         elements = result
 
     for item in elements:
-        # 获取元素信息
-        if hasattr(item, 'type'):
-            elem_type = item.type.value if hasattr(item.type, 'value') else str(item.type)
-            elem_text = item.text if hasattr(item, 'text') else ''
-            elem_score = item.score if hasattr(item, 'score') else 0.0
-            bbox = item.bbox if hasattr(item, 'bbox') else None
-        else:
+        if not hasattr(item, 'type'):
             continue
+
+        elem_type = item.type.value if hasattr(item.type, 'value') else str(item.type)
+        elem_text = item.text if hasattr(item, 'text') else ''
+        elem_score = item.score if hasattr(item, 'score') else 0.0
+        bbox = item.bbox if hasattr(item, 'bbox') else None
+
+        element_data = {"type": elem_type, "text": elem_text, "score": round(elem_score, 3)}
+        if bbox:
+            element_data["bbox"] = bbox
+        parsed_elements.append(element_data)
 
         if elem_type in ('text', 'title', 'figure_caption', 'table_caption', 'table'):
             if elem_text:
@@ -107,7 +113,6 @@ async def _recognize_via_p2t_local(image_path: str) -> dict:
                 latex_parts.append(f"${elem_text}$")
                 text_parts.append(elem_text)
         elif elem_type in ('figure', 'image', 'apparatus', 'structure'):
-            # 图片/图表/装置图/结构式 → 从原图裁剪保存
             if bbox:
                 img_counter += 1
                 img_id = f"img_{img_counter:03d}"
@@ -177,7 +182,6 @@ def _crop_image_region(image_path: str, bbox) -> str:
         cropped = img.crop((x1, y1, x2, y2))
 
         # 保存
-        import uuid
         cropped_path = f"./uploads/{uuid.uuid4().hex}_fig.jpg"
         cropped.save(cropped_path, "JPEG", quality=95)
 

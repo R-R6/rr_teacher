@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_
 
 from app.database import get_db
-from app.models import User, Question, QuestionTagRel, QuestionTag
+from app.models import User, Question, QuestionTagRel, QuestionImage, QuestionTag
 from app.schemas import (
     QuestionCreateReq, QuestionUpdateReq, QuestionResp,
     QuestionListReq, QuestionListResp, ApiResp,
@@ -45,6 +45,15 @@ async def create_question(
         for tag_id in req.tag_ids:
             rel = QuestionTagRel(question_id=question.id, tag_id=tag_id)
             db.add(rel)
+
+    # 将 OCR 识别出的图片关联到新题目
+    if req.ocr_record_id:
+        from sqlalchemy import update
+        await db.execute(
+            update(QuestionImage)
+            .where(QuestionImage.ocr_record_id == req.ocr_record_id)
+            .values(question_id=question.id)
+        )
 
     return ApiResp(message="题目创建成功", data={"question_id": question.id})
 

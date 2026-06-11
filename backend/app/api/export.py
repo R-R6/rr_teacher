@@ -70,29 +70,28 @@ async def export_paper_to_word(
         all_question_ids.append(q.id)
 
     # 构建图片映射表（从 QuestionImage 表查询）
-    import httpx
+    import httpx, re, tempfile
     image_map = {}
     if all_question_ids:
         img_result = await db.execute(
-            select(QuestionImage).where(QuestionImage.question_id.in_(all_question_ids))
+            select(QuestionImage)
+            .where(QuestionImage.question_id.in_(all_question_ids))
+            .order_by(QuestionImage.sort_order)
         )
-        for img in img_result.scalars().all():
-            # 从 image_url 下载图片到临时文件供 Word 使用
+        images = img_result.scalars().all()
+
+        for img in images:
             if img.image_url:
                 try:
                     async with httpx.AsyncClient(timeout=10) as client:
                         img_resp = await client.get(img.image_url)
                         if img_resp.status_code == 200:
-                            import tempfile
                             tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
                             tmp.write(img_resp.content)
                             tmp.close()
-                            # 用 img_id 作为 key（从 content 中的 {{img:xxx}} 解析）
-                            for q_data in questions_data:
-                                if f"{{{{img:" in (q_data.get("content") or ""):
-                                    # 将图片关联到包含占位符的题目
-                                    img_id = f"img_{q_data['id'][:8]}"
-                                    image_map[img_id] = tmp.name
+                            # OCR 引擎生成 img_001, img_002... 按 sort_order 对应
+                            img_key = f"img_{img.sort_order + 1:03d}"
+                            image_map[img_key] = tmp.name
                 except Exception:
                     pass
 
