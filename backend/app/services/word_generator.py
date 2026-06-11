@@ -142,14 +142,36 @@ def _add_formula_run(paragraph, latex_formula: str):
         run.font.color.rgb = RGBColor(100, 100, 100)
 
 
-def _add_mixed_text(paragraph, text: str):
+def _add_mixed_text(paragraph, text: str, image_map: dict = None):
     """
-    添加混合文本（含$...$公式标记的文字）到Word段落
+    添加混合文本（含$...$公式标记和{{img:xxx}}图片占位符）到Word段落
+
+    参数:
+        paragraph: Word 段落对象
+        text: 混合文本
+        image_map: {img_id: 图片路径或bytes} 图片映射表
     """
-    parts = re.split(r'(\$[^$]+\$)', text)
+    # 分割 $...$ 公式 和 {{img:xxx}} 图片占位符
+    parts = re.split(r'(\$[^$]+\$)|(\{\{img:(\w+)\}\})', text)
     for part in parts:
+        if not part:
+            continue
         if part.startswith('$') and part.endswith('$'):
             _add_formula_run(paragraph, part)
+        elif part.startswith('{{img:') and image_map:
+            img_id = part[5:-2]  # 提取 img_001
+            img_path = image_map.get(img_id)
+            if img_path:
+                try:
+                    run = paragraph.add_run()
+                    # 控制图片宽度为 A4 页面的 60%（约 10cm）
+                    run.add_picture(img_path, width=Cm(10))
+                    paragraph.add_run('\n')  # 图片后换行
+                except Exception:
+                    # 图片加载失败，插入占位文字
+                    run = paragraph.add_run(f'[{img_id}]')
+                    run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(150, 150, 150)
         else:
             run = paragraph.add_run(part)
             run.font.size = Pt(11)
@@ -163,6 +185,7 @@ def generate_test_paper_word(
     total_score: int,
     exam_duration: int,
     questions: list[dict],
+    image_map: dict = None,
 ) -> str:
     """
     生成化学试卷Word文档
@@ -272,8 +295,8 @@ def generate_test_paper_word(
             qno_run.font.size = Pt(11)
             qno_run.font.bold = True
 
-            # 题目内容（支持化学公式）
-            _add_mixed_text(q_para, content)
+            # 题目内容（支持化学公式 + 图片）
+            _add_mixed_text(q_para, content, image_map)
 
             # 分值标注
             score_run = q_para.add_run(f"  （{score}分）")
@@ -287,7 +310,7 @@ def generate_test_paper_word(
                     opt_text = opt.get("text", "")
                     opt_para = doc.add_paragraph()
                     opt_para.paragraph_format.left_indent = Cm(1)
-                    _add_mixed_text(opt_para, f"{opt_label}. {opt_text}")
+                    _add_mixed_text(opt_para, f"{opt_label}. {opt_text}", image_map)
 
             # 答题空行（非选择题）
             if qt != "choice":
@@ -342,7 +365,7 @@ def generate_answer_sheet_word(paper_title: str, questions: list[dict]) -> str:
         qno_run.font.bold = True
 
         answer = q.get("answer") or "暂无答案"
-        _add_mixed_text(q_para, f"答案：{answer}")
+        _add_mixed_text(q_para, f"答案：{answer}", image_map)
 
         analysis = q.get("analysis")
         if analysis:
@@ -351,7 +374,7 @@ def generate_answer_sheet_word(paper_title: str, questions: list[dict]) -> str:
             ana_run = ana_para.add_run("解析：")
             ana_run.font.size = Pt(10)
             ana_run.font.color.rgb = RGBColor(0, 100, 0)
-            _add_mixed_text(ana_para, analysis)
+            _add_mixed_text(ana_para, analysis, image_map)
 
     import os
     export_dir = "./exports"

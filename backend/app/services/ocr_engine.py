@@ -56,39 +56,135 @@ async def _recognize_via_p2t_service(image_path: str) -> dict:
 
 
 async def _recognize_via_p2t_local(image_path: str) -> dict:
-    """使用本地 Pix2Text 库识别（降级方案）"""
+    """
+    使用本地 Pix2Text 库识别（降级方案）
+    支持文字+公式+图片区域的混合识别
+    """
     try:
         from pix2text import Pix2Text
     except ImportError:
-        raise ImportError(
-            "Pix2Text 未安装，请执行: pip install pix2text>=1.1\n"
-            "或部署OCR微服务: docker compose up ocr-service"
-        )
+        logger.warning("Pix2Text 未安装，OCR 识别不可用")
+        return {
+            "latex": "",
+            "text": "",
+            "raw_json": json.dumps({"error": "pix2text not installed"}),
+            "confidence": 0.0,
+            "engine": "unavailable",
+            "images": [],
+        }
 
     p2t = Pix2Text()
     result = p2t.recognize(image_path, file_type="page")
 
     latex_parts = []
     text_parts = []
-    for item in result:
-        if item.get("type") == "text":
-            text_parts.append(item.get("text", ""))
-            latex_parts.append(item.get("text", ""))
-        elif item.get("type") == "isolated":
-            latex = item.get("text", "")
-            latex_parts.append(f"${latex}$")
-            text_parts.append(latex)
+    figure_images = []  # 裁剪出的图片信息
+    img_counter = 0
 
-    latex_result = "\n\n".join(latex_parts)
-    text_result = "\n\n".join(text_parts)
+    # Pix2Text 返回的是对象列表
+    elements = []
+    if hasattr(result, 'elements'):
+        elements = result.elements
+    elif isinstance(result, (list, tuple)):
+        elements = result
+
+    for item in elements:
+        # 获取元素信息
+        if hasattr(item, 'type'):
+            elem_type = item.type.value if hasattr(item.type, 'value') else str(item.type)
+            elem_text = item.text if hasattr(item, 'text') else ''
+            elem_score = item.score if hasattr(item, 'score') else 0.0
+            bbox = item.bbox if hasattr(item, 'bbox') else None
+        else:
+            continue
+
+        if elem_type in ('text', 'title', 'figure_caption', 'table_caption', 'table'):
+            if elem_text:
+                text_parts.append(elem_text)
+                latex_parts.append(elem_text)
+        elif elem_type == 'formula':
+            if elem_text:
+                latex_parts.append(f"${elem_text}$")
+                text_parts.append(elem_text)
+        elif elem_type in ('figure', 'image', 'apparatus', 'structure'):
+            # 图片/图表/装置图/结构式 → 从原图裁剪保存
+            if bbox:
+                img_counter += 1
+                img_id = f"img_{img_counter:03d}"
+                cropped_path = _crop_image_region(image_path, bbox)
+                if cropped_path:
+                    figure_images.append({
+                        "id": img_id,
+                        "bbox": list(bbox) if hasattr(bbox, '__iter__') else bbox,
+                        "type": elem_type,
+                        "cropped_path": cropped_path,
+                    })
+                    latex_parts.append(f"{{{{img:{img_id}}}}}")
+                    text_parts.append(f"[图片:{elem_type}]")
+        else:
+            if elem_text:
+                latex_parts.append(elem_text)
+                text_parts.append(elem_text)
+
+    latex_result = "\n\n".join(latex_parts) if latex_parts else ""
+    text_result = "\n\n".join(text_parts) if text_parts else ""
+
+    # 计算平均置信度
+    scores = []
+    for item in elements:
+        if hasattr(item, 'score') and item.score:
+            scores.append(item.score)
+    avg_score = round(sum(scores) / len(scores), 3) if scores else 0.0
 
     return {
         "latex": latex_result,
         "text": text_result,
-        "raw_json": json.dumps(result, ensure_ascii=False, default=str),
-        "confidence": 0.85,  # P2T 本地库不提供置信度，给默认值
+        "raw_json": json.dumps({"elements": len(elements), "figures": len(figure_images)}, ensure_ascii=False),
+        "confidence": avg_score,
         "engine": "pix2text",
+        "images": figure_images,
     }
+
+
+def _crop_image_region(image_path: str, bbox) -> str:
+    """
+    根据 bbox 从原图裁剪出图片区域
+    bbox: (x1, y1, x2, y2) 坐标
+    返回裁剪后的图片路径
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(image_path)
+
+        # 解析 bbox
+        if hasattr(bbox, '__iter__') and len(bbox) >= 4:
+            x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+        else:
+            return ""
+
+        # 添加 padding（每边 5px）
+        padding = 5
+        x1 = max(0, x1 - padding)
+        y1 = max(0, y1 - padding)
+        x2 = min(img.width, x2 + padding)
+        y2 = min(img.height, y2 + padding)
+
+        if x2 <= x1 or y2 <= y1:
+            return ""
+
+        # 裁剪
+        cropped = img.crop((x1, y1, x2, y2))
+
+        # 保存
+        import uuid
+        cropped_path = f"./uploads/{uuid.uuid4().hex}_fig.jpg"
+        cropped.save(cropped_path, "JPEG", quality=95)
+
+        return cropped_path
+    except Exception as e:
+        logger.warning(f"裁剪图片区域失败: {e}")
+        return ""
 
 
 async def preprocess_image(image_path: str) -> str:

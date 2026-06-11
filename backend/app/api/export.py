@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
-from app.models import User, Paper, PaperItem, Question
+from app.models import User, Paper, PaperItem, Question, QuestionImage
 from app.schemas import ApiResp
 from app.auth import get_current_user, get_current_teacher
 from app.services.word_generator import generate_test_paper_word, generate_answer_sheet_word
@@ -55,6 +55,7 @@ async def export_paper_to_word(
         raise HTTPException(status_code=400, detail="试卷为空")
 
     questions_data = []
+    all_question_ids = []
     for item, q in rows:
         questions_data.append({
             "id": q.id,
@@ -66,6 +67,34 @@ async def export_paper_to_word(
             "score": item.score,
             "sort_order": item.sort_order,
         })
+        all_question_ids.append(q.id)
+
+    # 构建图片映射表（从 QuestionImage 表查询）
+    import httpx
+    image_map = {}
+    if all_question_ids:
+        img_result = await db.execute(
+            select(QuestionImage).where(QuestionImage.question_id.in_(all_question_ids))
+        )
+        for img in img_result.scalars().all():
+            # 从 image_url 下载图片到临时文件供 Word 使用
+            if img.image_url:
+                try:
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        img_resp = await client.get(img.image_url)
+                        if img_resp.status_code == 200:
+                            import tempfile
+                            tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                            tmp.write(img_resp.content)
+                            tmp.close()
+                            # 用 img_id 作为 key（从 content 中的 {{img:xxx}} 解析）
+                            for q_data in questions_data:
+                                if f"{{{{img:" in (q_data.get("content") or ""):
+                                    # 将图片关联到包含占位符的题目
+                                    img_id = f"img_{q_data['id'][:8]}"
+                                    image_map[img_id] = tmp.name
+                except Exception:
+                    pass
 
     # 生成试题卷Word
     test_paper_path = generate_test_paper_word(
@@ -74,6 +103,7 @@ async def export_paper_to_word(
         total_score=paper.total_score,
         exam_duration=paper.exam_duration,
         questions=questions_data,
+        image_map=image_map,
     )
 
     # 上传试题卷到COS

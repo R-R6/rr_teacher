@@ -1,15 +1,16 @@
 """
 OCR 识别模块: 拍照上传 → 预处理 → 识别 → 结果返回
+支持文字+公式+图片区域的混合识别
 """
 import os
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
-from app.models import User, OcrRecord
+from app.models import User, OcrRecord, QuestionImage
 from app.schemas import OcrResp, OcrCorrectReq, ApiResp
 from app.auth import get_current_user, get_current_teacher
 from app.services.ocr_engine import recognize_image
@@ -28,15 +29,13 @@ async def recognize_question(
     拍照识别化学题目
     1. 接收图片上传
     2. 存储原图到COS
-    3. 调用OCR引擎识别
-    4. 返回LaTeX格式结果
+    3. 调用OCR引擎识别（含图片区域裁剪）
+    4. 返回LaTeX结果 + 裁剪图片URL
     """
-    # 校验文件类型
     allowed_types = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="仅支持 JPG/PNG/WebP/BMP 格式图片")
 
-    # 保存临时文件
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     local_path = f"./uploads/{uuid.uuid4().hex}.{ext}"
     content = await file.read()
@@ -44,14 +43,30 @@ async def recognize_question(
         f.write(content)
 
     try:
-        # 上传原图到COS
+        # 1. 上传原图到COS
         cos_key = f"ocr/{current_user.id}/{uuid.uuid4().hex}.{ext}"
         origin_url = await upload_to_cos(local_path, cos_key)
 
-        # 调用OCR识别
+        # 2. 调用OCR识别（含图片区域检测）
         ocr_result = await recognize_image(local_path)
 
-        # 创建OCR记录
+        # 3. 上传裁剪出的图片到COS
+        figure_images = []
+        for img_info in ocr_result.get("images", []):
+            cropped_path = img_info.get("cropped_path", "")
+            if cropped_path and os.path.exists(cropped_path):
+                img_cos_key = f"ocr/{current_user.id}/fig_{uuid.uuid4().hex}.jpg"
+                img_url = await upload_to_cos(cropped_path, img_cos_key)
+                figure_images.append({
+                    "id": img_info["id"],
+                    "image_url": img_url,
+                    "image_type": img_info.get("type", "figure"),
+                    "bbox": img_info.get("bbox"),
+                })
+                if os.path.exists(cropped_path):
+                    os.remove(cropped_path)
+
+        # 4. 创建OCR记录
         record = OcrRecord(
             user_id=current_user.id,
             origin_image_url=origin_url,
@@ -63,6 +78,17 @@ async def recognize_question(
             created_at=datetime.now(),
         )
         db.add(record)
+        await db.flush()
+
+        # 5. 保存图片记录到 question_image 表
+        for idx, img_info in enumerate(figure_images):
+            db.add(QuestionImage(
+                ocr_record_id=record.id,
+                image_url=img_info["image_url"],
+                image_type=img_info.get("type", "figure"),
+                source_bbox=img_info.get("bbox"),
+                sort_order=idx,
+            ))
 
         return ApiResp(
             message="识别完成",
@@ -72,10 +98,10 @@ async def recognize_question(
                 "result_latex": ocr_result.get("latex"),
                 "result_text": ocr_result.get("text"),
                 "confidence": ocr_result.get("confidence"),
+                "images": figure_images,
             }
         )
     finally:
-        # 清理本地临时文件
         if os.path.exists(local_path):
             os.remove(local_path)
 
@@ -94,7 +120,6 @@ async def correct_ocr_result(
     if record.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权修改此记录")
 
-    # 保存修正记录
     corrections = record.manual_corrections or []
     corrections.append({
         "corrected_at": datetime.now().isoformat(),
@@ -119,11 +144,9 @@ async def get_ocr_history(
     """获取用户的OCR识别历史记录"""
     from sqlalchemy import func
 
-    # 总数
     count_stmt = select(func.count()).select_from(OcrRecord).where(OcrRecord.user_id == current_user.id)
     total = (await db.execute(count_stmt)).scalar()
 
-    # 分页
     stmt = (
         select(OcrRecord)
         .where(OcrRecord.user_id == current_user.id)
@@ -136,13 +159,19 @@ async def get_ocr_history(
 
     items = []
     for r in records:
+        # 查询关联的图片
+        img_result = await db.execute(
+            select(QuestionImage).where(QuestionImage.ocr_record_id == r.id)
+        )
+        images = [{"id": i.id, "url": i.image_url, "type": i.image_type} for i in img_result.scalars().all()]
+
         items.append({
             "record_id": r.id,
             "origin_image_url": r.origin_image_url,
             "result_latex": r.ocr_result_latex,
             "result_text": r.ocr_result_text,
             "confidence": r.confidence,
-            "has_question": False,  # 是否已转为题目(需查Question表)
+            "images": images,
             "created_at": r.created_at.isoformat(),
         })
 

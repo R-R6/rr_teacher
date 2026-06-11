@@ -97,6 +97,29 @@ class Question(Base):
     author = relationship("User", back_populates="questions")
     ocr_record = relationship("OcrRecord", back_populates="question", uselist=False)
     tags = relationship("QuestionTagRel", back_populates="question", cascade="all, delete-orphan")
+    images = relationship("QuestionImage", back_populates="question", cascade="all, delete-orphan")
+
+
+# ────────────────────────── 题目图片 ──────────────────────────
+
+class QuestionImage(Base):
+    """题目中裁剪出的图片（电解池、有机结构式、实验装置等）"""
+    __tablename__ = "question_image"
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="图片ID")
+    question_id = Column(CHAR(32), ForeignKey("question.id"), nullable=True, comment="关联题目")
+    ocr_record_id = Column(CHAR(32), ForeignKey("ocr_record.id"), nullable=True, comment="关联OCR记录")
+    image_url = Column(String(512), nullable=False, comment="图片URL(COS)")
+    image_type = Column(String(50), default="figure", comment="图片类型: figure/apparatus/structure/table")
+    source_bbox = Column(JSON, nullable=True, comment="在原图中的位置 [x1,y1,x2,y2]")
+    width = Column(Integer, nullable=True, comment="图片宽度(px)")
+    height = Column(Integer, nullable=True, comment="图片高度(px)")
+    sort_order = Column(Integer, default=0, comment="在题目中的出现顺序")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+
+    # 关系
+    question = relationship("Question", back_populates="images")
+    ocr_record = relationship("OcrRecord")
 
 
 # ────────────────────────── 题目-标签关联 ──────────────────────────
