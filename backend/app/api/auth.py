@@ -3,7 +3,7 @@
 """
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -185,7 +185,7 @@ async def update_my_info(
 
 
 @router.post("/refresh", response_model=ApiResp)
-async def refresh_access_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
+async def refresh_access_token(refresh_token: str = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
     """刷新访问令牌"""
     from app.auth import decode_token
     payload = decode_token(refresh_token)

@@ -40,12 +40,53 @@ def _check_rate_limit(store: dict, key: str, limit: int) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期: 启动时初始化数据库"""
+    """应用生命周期: 启动时初始化数据库 + 自动补充种子数据"""
     await init_db()
+
+    # 检查数据库是否有数据，没有则自动导入
+    from sqlalchemy import text
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(text("SELECT COUNT(*) FROM question"))
+        count = result.scalar()
+        if count == 0:
+            logger.info("数据库为空，自动导入种子数据...")
+            await _auto_seed(session)
+        else:
+            logger.info(f"数据库已有 {count} 道题目")
+
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 启动完成")
     logger.info(f"调试模式: {settings.DEBUG} | Swagger: {settings.SWAGGER_ENABLED}")
     logger.info(f"数据库类型: {settings.DB_TYPE}")
     yield
+
+
+async def _auto_seed(session):
+    """从 init.sql 自动导入种子数据"""
+    import os
+    sql_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sql", "init.sql")
+    if not os.path.exists(sql_path):
+        logger.warning(f"init.sql 不存在: {sql_path}")
+        return
+
+    with open(sql_path, "r", encoding="utf-8") as f:
+        sql_content = f.read()
+
+    # 提取 INSERT 语句
+    success = 0
+    errors = 0
+    for line in sql_content.split("\n"):
+        line = line.strip()
+        if line.upper().startswith("INSERT"):
+            try:
+                await session.execute(text(line))
+                success += 1
+            except Exception as e:
+                errors += 1
+                logger.debug(f"种子数据跳过: {str(e)[:80]}")
+
+    await session.commit()
+    logger.info(f"种子数据导入完成: 成功 {success} 条, 跳过 {errors} 条")
 
 
 app = FastAPI(

@@ -8,7 +8,7 @@
       </view>
     </view>
 
-    <!-- OCR 识别结果 -->
+    <!-- 识别结果 -->
     <view class="result-section">
       <view class="section-header">
         <text class="section-title">📝 LaTeX 识别结果</text>
@@ -28,20 +28,17 @@
       </view>
     </view>
 
-    <!-- 操作按钮 -->
+    <!-- 底部按钮：快速保存 + 编辑入库 -->
     <view class="action-bar safe-area-bottom">
-      <view class="action-btn btn-secondary" @tap="correctResult">
-        <text>✏️ 纠正</text>
-      </view>
       <view class="action-btn btn-primary" @tap="showQuickSave = true">
-        <text>💾 一键入库</text>
+        <text>⚡ 快速保存</text>
       </view>
       <view class="action-btn btn-outline" @tap="goEditPage">
-        <text>📝 编辑入库</text>
+        <text>✏️ 编辑入库</text>
       </view>
     </view>
 
-    <!-- 一键入库弹窗 -->
+    <!-- 快速保存弹窗（原一键入库弹窗） -->
     <view v-if="showQuickSave" class="modal-mask" @tap="showQuickSave = false">
       <view class="modal-content" @tap.stop>
         <text class="modal-title">保存到题库</text>
@@ -123,26 +120,6 @@ export default {
       if (this.image_url) {
         uni.previewImage({ urls: [this.image_url], current: this.image_url })
       }
-    },
-    correctResult() {
-      uni.showModal({
-        title: '纠正识别结果',
-        editable: true,
-        placeholderText: '输入正确的内容',
-        content: this.result_latex,
-        success: async (res) => {
-          if (res.confirm && res.content) {
-            this.result_latex = res.content
-            try {
-              await ocrAPI.correct({
-                record_id: this.record_id,
-                corrected_latex: res.content,
-              })
-              uni.showToast({ title: '已纠正', icon: 'success' })
-            } catch (e) {}
-          }
-        },
-      })
     },
     async quickSave() {
       if (!this.result_latex.trim()) {
@@ -230,19 +207,24 @@ export default {
 
 .action-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; display: flex; gap: 12rpx;
+  background: #fff; display: flex; gap: 16rpx;
   padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.06);
 }
 .action-btn {
-  flex: 1; text-align: center; padding: 22rpx 0;
-  border-radius: 16rpx; font-size: 26rpx; font-weight: 600;
+  flex: 1; text-align: center; padding: 24rpx 0;
+  border-radius: 16rpx; font-size: 30rpx; font-weight: 600;
 }
-.btn-primary { background: linear-gradient(135deg, #4A6CF7, #6B8AFF); color: #fff; }
-.btn-secondary { background: #F3F4F6; color: #374151; }
-.btn-outline { background: #fff; color: #4A6CF7; border: 2rpx solid #4A6CF7; }
+.btn-primary {
+  background: linear-gradient(135deg, #4A6CF7, #6B8AFF); color: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(74,108,247,0.25);
+}
+.btn-outline {
+  background: #fff; color: #4A6CF7;
+  border: 2rpx solid #4A6CF7;
+}
 
 /* 弹窗 */
 .modal-mask {
@@ -265,9 +247,7 @@ export default {
   display: block; font-size: 26rpx; color: #6B7280;
   margin-bottom: 12rpx; margin-top: 20rpx;
 }
-.modal-types {
-  display: flex; flex-wrap: wrap; gap: 12rpx;
-}
+.modal-types { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .modal-type {
   padding: 12rpx 20rpx; border-radius: 12rpx;
   background: #F3F4F6; font-size: 24rpx; color: #6B7280;
@@ -284,9 +264,7 @@ export default {
   width: 100%; height: 80rpx; background: #F5F6FA;
   border-radius: 12rpx; padding: 0 20rpx; font-size: 26rpx;
 }
-.modal-actions {
-  display: flex; gap: 20rpx; margin-top: 32rpx;
-}
+.modal-actions { display: flex; gap: 20rpx; margin-top: 32rpx; }
 .modal-btn {
   flex: 1; text-align: center; padding: 24rpx 0;
   border-radius: 16rpx; font-size: 30rpx; font-weight: 600;
