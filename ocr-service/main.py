@@ -2,6 +2,8 @@
 PaddleOCR v2 微服务
 提供化学题目 OCR 识别能力
 """
+import numpy as np
+from PIL import Image
 from io import BytesIO
 from fastapi import FastAPI, UploadFile, File
 
@@ -32,10 +34,14 @@ async def load_model():
 async def recognize(file: UploadFile = File(...)):
     """
     识别图片中的化学题目
-    PaddleOCR v2 返回格式: [[bbox, (text, confidence)], ...]
     """
     content = await file.read()
-    result = ocr_engine.ocr(BytesIO(content), cls=True)
+
+    # 将图片 bytes 转为 numpy 数组（PaddleOCR v2 接受 numpy）
+    img = Image.open(BytesIO(content))
+    img_array = np.array(img)
+
+    result = ocr_engine.ocr(img_array, cls=True)
 
     latex_parts = []
     text_parts = []
@@ -53,7 +59,6 @@ async def recognize(file: UploadFile = File(...)):
                 if not text:
                     continue
 
-                # 构建元素信息
                 element = {
                     "type": "text",
                     "text": text,
