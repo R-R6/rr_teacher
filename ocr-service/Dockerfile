@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 依赖 (PaddleOCR + Web服务)
+# Python 依赖 (PaddleOCR v2.9 + PaddlePaddle 2.6)
 RUN pip install --no-cache-dir \
-    paddlepaddle==3.0.0 \
-    paddleocr>=2.9.0 \
+    paddlepaddle==2.6.2 \
+    paddleocr==2.9.1 \
     fastapi>=0.115 \
     uvicorn>=0.34 \
     python-multipart>=0.0.18 \
