@@ -58,7 +58,7 @@ services:
       redis:
         condition: service_started
 
-  # ── OCR 微服务 (Pix2Text) ──
+  # ── OCR 微服务 (PaddleOCR) ──
   ocr-service:
     build:
       context: ./ocr-service
@@ -68,11 +68,11 @@ services:
     ports:
       - "8001:8001"
     volumes:
-      - ocr_cache:/root/.pix2text
+      - ocr_cache:/root/.paddleocr
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
 
 volumes:
   mysql_data:
