@@ -1,5 +1,4 @@
-# FastAPI + MySQL 后端依赖（云托管版）
-# OCR引擎(pix2text)在独立微服务中部署，不在这里
+# FastAPI + MySQL + OCR 后端依赖（云托管版）
 
 # Web框架
 fastapi==0.115.6
@@ -22,6 +21,10 @@ pydantic-settings==2.7.0
 
 # 图片处理
 Pillow==11.1.0
+
+# OCR引擎 (PaddleOCR)
+paddlepaddle==2.6.2
+paddleocr==2.9.1
 
 # Word导出
 python-docx==1.1.2

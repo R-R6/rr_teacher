@@ -10,6 +10,13 @@
     "weixin-devtools": {
       "command": "node",
       "args": ["F:\\develop_soft\\IDE\\claude_code\\wechat_ai_tools\\node_modules\\weixin-devtools-mcp\\build\\server.js"]
+    },
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "ClaudeCode"
+      }
     }
   }
 }
