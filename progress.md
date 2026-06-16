@@ -8,10 +8,11 @@
 | Phase 1 MVP | ✅ | ✅ | 完成 |
 | Phase 2 题库管理 | ✅ | ✅ | 完成 |
 | Phase 3 组卷系统 | ✅ | ✅ | 基本完成 |
-| Phase 4 学生端 | 🔄 开发中 | 🔄 开发中 | **进行中** |
-| 云部署 | ✅ | ✅ | 完成 |
+| Phase 4 学生端 | ✅ 代码完成 | ✅ 代码完成 | **入口已隐藏** |
+| 云部署 | ✅ | ✅ | 运行中 |
+| OCR 引擎 | ✅ PaddleOCR | — | **真机待验证** |
 
-**后端完成度: 75% | 前端完成度: 70% | 部署: 60%**
+**后端完成度: 85% | 前端完成度: 75% | 部署: 70% | OCR: 90%**
 
 ---
 
@@ -23,8 +24,8 @@
 | Docker Compose | ✅ | MySQL + Redis + 后端 + OCR |
 | 安全加固 | ✅ | JWT密钥随机化、速率限制、CORS、安全头 |
 | 微信开发者工具 | ✅ | 路径: `F:\develop_soft\weixin_developer\weixin_dp` |
-| MCP 工具 | ✅ | uniapp-wechat + weixin-devtools |
-| Claude Code Skills | ✅ | 18个技能 + 斜杠命令 |
+| MCP 工具 | ✅ | uniapp-wechat + weixin-devtools + cloudbase |
+| Claude Code Skills | ✅ | 19个技能（含新安装的 cloudbase） |
 
 ## Phase 1: MVP 最小可用 ✅
 
@@ -32,47 +33,43 @@
 
 | 任务 | 状态 | 备注 |
 |------|------|------|
-| FastAPI 骨架 + 路由 | ✅ | main.py + 7个API模块 |
-| 数据库 9 个模型 | ✅ | User/Question/Tag/Paper/OcrRecord/MistakeBook/PracticeRecord |
+| FastAPI 骨架 + 路由 | ✅ | main.py + 9个API模块 |
+| 数据库 10 个模型 | ✅ | User/Question/Tag/Paper/OcrRecord/MistakeBook/PracticeRecord/QuestionImage |
 | JWT 认证 | ✅ | access + refresh token |
 | 题目 CRUD | ✅ | 创建/详情/列表/更新/删除/批量删除 |
-| OCR 识别 API | ✅ | Pix2Text 双引擎（HTTP + 本地） |
-| 图片存储 | ✅ | 本地开发 + COS 生产 |
-| Word 导出 | ✅ | 试题卷 + 答案卷，化学式 Unicode 转换 |
+| OCR 识别 | ✅ | PaddleOCR v2.9 本地集成 |
+| 图片存储 | ✅ | COS 生产 + 本地开发 |
+| Word 导出 | ✅ | 试题卷 + 答案卷，支持图片嵌入 |
+| 管理工具 | ✅ | 种子数据导入接口 |
 
 ### 前端
 
 | 页面 | 文件 | 功能 |
 |------|------|------|
 | 登录/注册 | `login.vue` | 用户名密码 + 微信一键登录 + 头像昵称授权 |
-| 首页 | `index.vue` | 功能入口 + 最近题目 + 快捷操作 |
+| 首页 | `index.vue` | 功能入口 + 最近题目 |
 | OCR 拍照 | `ocr.vue` | 相机拍照 + 相册选择 |
-| OCR 结果 | `ocr-result.vue` | LaTeX 结果展示 + 纠正 + 保存到题库 |
-| 题库列表 | `questions.vue` | 搜索/筛选/分页 |
+| OCR 结果 | `ocr-result.vue` | 结果展示 + 纠正 + 一键入库 + 编辑入库 |
+| 题库列表 | `questions.vue` | 搜索/筛选/分页/标签 |
 | 题目详情 | `question-detail.vue` | 内容/选项/答案/解析/标签 |
-| 题目编辑 | `question-edit.vue` | 新建/编辑，支持5种题型 |
+| 题目编辑 | `question-edit.vue` | 新建/编辑 + 标签选择器 |
 | 试卷列表 | `papers.vue` | 试卷管理 |
 | 创建试卷 | `paper-create.vue` | 手动选题 / 智能组卷 |
 | 试卷详情 | `paper-detail.vue` | 题目列表 + Word 导出 |
 | 标签管理 | `tags.vue` | 树形标签 + 增删 |
 | 个人中心 | `profile.vue` | 信息/统计/编辑资料/退出登录 |
-
-### 基础设施
-
-| 模块 | 文件 | 功能 |
-|------|------|------|
-| API 封装 | `utils/api.js` | 统一请求、Token 刷新、错误处理 |
-| 认证工具 | `utils/auth.js` | Token 管理、登录检查 |
-| 工具函数 | `utils/util.js` | LaTeX→Unicode、题型/难度映射、时间格式化 |
-| 状态管理 | `store/index.js` | 简单 reactive store |
-| 云存储 | `utils/cloud.js` | 云存储上传/下载/删除 |
+| 刷题主页 | `practice/practice.vue` | 模式选择 + 知识点专项 |
+| 答题页 | `practice/question.vue` | 即时反馈+解析折叠 |
+| 练习结果 | `practice/result.vue` | 得分+用时+评语 |
+| 错题本 | `mistakes/list.vue` | 列表+筛选+重做+标记掌握 |
+| 学习报告 | `report/index.vue` | 统计卡片+趋势图+错题概览 |
 
 ## Phase 2: 题库管理 ✅
 
 | 任务 | 后端 | 前端 |
 |------|------|------|
 | 题目 CRUD | ✅ | ✅ 列表/详情/编辑/删除 |
-| 标签管理 | ✅ 29个预设标签 | ✅ 树形展示 + 增删 |
+| 标签管理 | ✅ 30个预设标签 | ✅ 树形展示 + 增删 + 标签选择器 |
 | 搜索/筛选 | ✅ 关键词/题型/难度 | ✅ 搜索栏 + 标签筛选 |
 | 私有题库隔离 | ✅ | ✅ |
 
@@ -83,31 +80,9 @@
 | 手动组卷 | ✅ | ✅ 勾选题目 |
 | 智能组卷 | ✅ 规则选题 | ✅ 规则配置 |
 | 试卷预览 | ✅ | ✅ |
-| Word 导出 | ✅ | ✅ 试卷详情页已对接 |
+| Word 导出 | ✅ 支持图片嵌入 | ✅ 试卷详情页已对接 |
 
-## Phase 4: 学生端 🔄
-
-### 竞品分析要点（详见 docs/findings.md）
-
-| 功能 | 作业帮 | 猿题库 | 小猿搜题 | 本项目规划 |
-|------|--------|--------|---------|-----------|
-| 顺序刷题 | ✅ | ✅ | ✅ | ✅ P0 |
-| 随机刷题 | ✅ | ✅ | ✅ | ✅ P1 |
-| 错题本 | ✅ | ✅ | ✅ | ✅ P0 |
-| 错题重练 | ✅ | ✅ | ✅ | ✅ P0 |
-| 答题解析 | ✅ | ✅ | ✅ | ✅ P0 |
-| 知识点雷达图 | ✅ | ✅ | — | ❌ P1 |
-| 连续打卡 | — | ✅ | — | ❌ P1 |
-| 模拟考试 | ✅ | ✅ | — | ❌ P2 |
-
-### 本项目差异化优势
-
-1. **教师可控题库** — 不是通用题海，针对本班学生的精准练习
-2. **师生闭环** — 教师出卷→学生刷题→查看薄弱点→针对性出题
-3. **化学专精** — OCR+LaTeX渲染是通用工具不具备的
-4. **班级管理** — 教师创建班级、分配练习、查看学情
-
-### 任务进度
+## Phase 4: 学生端（代码完成，入口已隐藏）
 
 | 任务 | 后端 | 前端 | 备注 |
 |------|------|------|------|
@@ -118,18 +93,31 @@
 | 练习结果页 | — | ✅ | 得分+用时+评语 |
 | 错题本页 | — | ✅ | 列表+筛选+重做+标记掌握 |
 | 学习报告 | — | ✅ | 统计卡片+趋势图+错题概览 |
-| 首页刷题入口 | — | ✅ | 蓝色卡片入口 |
+
+> 注：学生端 UI 入口已隐藏（首页无"开始刷题"按钮），待投入使用时恢复。
+
+## OCR 引擎
+
+| 项目 | 状态 | 说明 |
+|------|------|------|
+| PaddleOCR v2.9.1 集成 | ✅ | 从 Pix2Text 切换到 PaddleOCR |
+| 本地测试 | ✅ | 中文识别置信度 99.6% |
+| Docker 构建 | ✅ | v17 镜像包含 libGL 依赖 |
+| 云端部署 | ✅ | 已部署到云托管 v17 |
+| 真机验证 | ⚠️ 待测试 | 需要云端模型加载成功 |
+| COS 图片存储 | ✅ | 私有读写 + 签名 URL |
 
 ## 云部署 ✅
 
-| 服务 | 状态 | 地址 |
+| 服务 | 状态 | 信息 |
 |------|------|------|
-| 云托管（FastAPI） | ✅ 运行中 | `chem-backend-xxx.sh.run.tcloudbase.com` |
-| 云数据库 MySQL | ✅ 运行中 | `sh-cynosdbmysql-grp-xxx.sql.tencentcdb.com` |
-| 云存储 | ✅ 使用中 | 存储头像 |
+| 云托管（FastAPI + PaddleOCR） | ✅ 运行中 | `chem-backend-268016-4-1440725000.sh.run.tcloudbase.com` |
+| 云数据库 MySQL | ✅ 运行中 | `sh-cynosdbmysql-grp-kz0y0ejc.sql.tencentcdb.com:22860` |
+| COS 对象存储 | ✅ 使用中 | `chem-teacher-resource-1440725000` |
 | 云函数 | ✅ 已部署 | test-api |
 | 微信云开发初始化 | ✅ | env: cloud1-d5gls7mdgf0e5f907 |
-| Docker 镜像 | ✅ v6 | `ccr.ccs.tencentyun.com/chem-teacher/backend:v6` |
+| Docker 镜像 | ✅ v17 | `ccr.ccs.tencentyun.com/chem-teacher/backend:v17` |
+| 预置数据 | ✅ | 30标签 + 25题目 + 2试卷 |
 
 ---
 
@@ -138,22 +126,23 @@
 | # | 问题 | 优先级 | 状态 |
 |---|------|--------|------|
 | 1 | ~~微信登录占位符 openid~~ | ~~P1~~ | ✅ 已修复（v3+） |
-| 2 | OCR 预处理函数未集成 | P2 | 待修复 |
-| 3 | 试卷创建后无法编辑 | P2 | 待开发 |
-| 4 | 标签删除无级联处理 | P3 | 待修复 |
-| 5 | Word 中复杂化学式用占位符 | P3 | 待优化 |
-| 6 | 云托管自动暂停冷启动慢 | P2 | 已处理（不因超时清token） |
+| 2 | ~~OCR Pix2Text 识别失败~~ | ~~P0~~ | ✅ 已切换到 PaddleOCR |
+| 3 | ~~libGL.so.1 缺失~~ | ~~P0~~ | ✅ 已修复（v17 Dockerfile） |
+| 4 | OCR 真机验证 | P0 | ⚠️ 待测试（云端模型加载） |
+| 5 | COS 图片预览（私有URL） | P1 | ⚠️ 需要签名 URL |
+| 6 | 试卷创建后无法编辑 | P2 | 待开发 |
+| 7 | 标签删除无级联处理 | P3 | 待修复 |
+| 8 | Word 中复杂化学式优化 | P3 | 待优化 |
 
 ---
 
 ## 下一步
 
-1. **Phase 4 学生端开发** — 当前进行中
-   - 错题本 API + 刷题记录 API
-   - 刷题页面 + 错题本页面
-   - 学习报告页面
-2. **试卷编辑功能** — 创建后可修改
-3. **LaTeX 渲染优化** — 小程序内公式显示
+1. **真机验证 OCR** — 确认云端 PaddleOCR 能正常识别
+2. **COS 签名 URL** — 私有存储桶的图片预览
+3. **试卷编辑功能** — 创建后可修改
+4. **LaTeX 渲染优化** — 小程序内公式显示
+5. **恢复学生端入口** — 投入使用时启用
 
 ---
 
@@ -169,3 +158,13 @@
 | 2026-06-09 | 1d95a1f | PUT参数解析修复 + 个人资料编辑 |
 | 2026-06-09 | a47df70 | 登录页UI重设计 + 错误修复 |
 | 2026-06-09 | e8a8819 | MySQL与腾讯云开发文档 |
+| 2026-06-10 | 1ce2ebb | Phase 4 学生端雏形（刷题/错题本/学习报告） |
+| 2026-06-10 | d983f0a | 隐藏学生端入口 |
+| 2026-06-12 | 9df0d28 | 图片区域检测与裁剪 + Word图片嵌入 |
+| 2026-06-12 | 2760db1 | Code review 修复4个问题 |
+| 2026-06-12 | e3c42f6 | COS配置 + OCR结果页优化 |
+| 2026-06-13 | de9bcfd | OCR微服务从Pix2Text切换到PaddleOCR |
+| 2026-06-13 | 4b3dbc7 | OCR微服务PaddleOCR v2.9本地测试通过 |
+| 2026-06-13 | b217a23 | OCR服务bytes→numpy转换修复 |
+| 2026-06-13 | 34a6f25 | OCR引擎PaddleOCR v2.9本地调用 + CloudBase MCP |
+| 2026-06-16 | fad554a | 配置更新 + cloudbase skill + Dockerfile libGL修复 |
