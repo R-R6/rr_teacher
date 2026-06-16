@@ -25,6 +25,12 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "f483c304fcde060211ffae00f49bb728536e7e7613c99db45b5b924d9fc17243"
     },
+    "cloudbase": {
+      "source": "tencentcloudbase/cloudbase-skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloudbase/SKILL.md",
+      "computedHash": "dbe88504ab11bb72667bd708ea87b44113af80a509b4b028e7e1c922b27c7c6f"
+    },
     "code-reviewer": {
       "source": "google-gemini/gemini-cli",
       "sourceType": "github",

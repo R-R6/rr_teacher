@@ -258,10 +258,12 @@ async def get_questions(db: AsyncSession):
 
 ### Git 提交规则
 
-1. **只本地 commit，不主动 push** — 用户告诉我"推送"或"提交到远程"时才执行 `git push`
-2. **小改动攒着** — 完成一个功能模块后统一 commit，不要每次改一行就提一次
+**严格禁止自动执行 git commit 和 git push 命令**
+
+1. **禁止自动提交** — 完成代码修改后，不要自动运行 `git commit` 或 `git push` 命令
+2. **用户主动要求** — 只有当用户明确说"提交代码"、"commit"、"推送到远程"等要求时，才执行 `git commit` 和 `git push`
 3. **commit message 规范** — 用 `feat:` / `fix:` / `docs:` / `ui:` 前缀，中文描述，简洁明了
-4. **一个功能一个 commit** — 避免一个 commit 里混杂不相关的改动
+4. **commit 的内容** — 要包括当前代码更改区和暂存区的所有修改要点
 
 ## Known Issues
 

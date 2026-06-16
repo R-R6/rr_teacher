@@ -36,3 +36,22 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Claude Code 本地配置（包含敏感路径）
+.claude/settings.local.json
+.claude/launch.json
+
+# 临时文件
+=2.9.0
+
+# Obsidian 工作区
+docs/.obsidian/workspace.json
+
+# 敏感文件
+docs/SecretKey.csv
+
+# 测试文件
+ocr-service/test_chem.jpg
+
+# 临时 skills 目录（可能重复安装）
+.agents/
