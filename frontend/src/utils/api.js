@@ -114,14 +114,16 @@ export const questionsAPI = {
 
 // ========== OCR API ==========
 export const ocrAPI = {
-  recognize: (filePath) => {
+  recognize: (filePath, engine = 'tesseract') => {
     return new Promise((resolve, reject) => {
       const token = getToken()
       uni.uploadFile({
         url: `${BASE_URL}/ocr/recognize`,
         filePath,
         name: 'file',
+        formData: { engine },
         header: { Authorization: `Bearer ${token}` },
+        timeout: 120000,  // OCR 需要更长超时（模型推理）
         success: (res) => {
           const body = JSON.parse(res.data)
           if (body.code === 0) {
@@ -138,6 +140,7 @@ export const ocrAPI = {
       })
     })
   },
+  listEngines: () => request({ url: '/ocr/engines' }),
   correct: (data) => request({ url: '/ocr/correct', method: 'POST', data }),
   history: (params) => request({ url: '/ocr/history', data: params }),
 }

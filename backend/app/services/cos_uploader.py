@@ -1,30 +1,35 @@
 """
-腾讯云 COS 对象存储上传服务
-本地开发模式下使用本地文件存储
+Tencent COS upload helpers.
+Falls back to local filesystem storage when COS is not configured.
 """
-import os
+
 import logging
+import os
 import shutil
+from urllib.parse import unquote, urlparse
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# 本地存储目录
 LOCAL_STORAGE_DIR = "./uploads"
 os.makedirs(LOCAL_STORAGE_DIR, exist_ok=True)
 
-# 尝试导入COS SDK
 try:
     from qcloud_cos import CosConfig, CosS3Client
+
     HAS_COS_SDK = True
 except ImportError:
     HAS_COS_SDK = False
-    logger.info("qcloud_cos SDK未安装，使用本地文件存储模式")
+    logger.info("qcloud_cos SDK not installed, using local file storage")
+
+
+def _cos_enabled() -> bool:
+    return bool(settings.COS_SECRET_ID and settings.COS_BUCKET and HAS_COS_SDK)
 
 
 def _get_cos_client():
-    """获取COS客户端实例"""
-    if not HAS_COS_SDK:
+    if not _cos_enabled():
         return None
     config = CosConfig(
         Region=settings.COS_REGION,
@@ -34,46 +39,77 @@ def _get_cos_client():
     return CosS3Client(config)
 
 
-async def upload_to_cos(local_path: str, cos_key: str) -> str:
-    """
-    上传文件到腾讯云COS
-    本地开发模式: 复制到本地uploads目录
-    返回可访问的URL或本地路径
-    """
-    # 本地开发模式: 未配置COS或未安装SDK
-    if not settings.COS_SECRET_ID or not HAS_COS_SDK:
-        # 复制文件到本地存储
-        dest_path = os.path.join(LOCAL_STORAGE_DIR, os.path.basename(cos_key))
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        shutil.copy2(local_path, dest_path)
-        logger.info(f"文件已保存到本地: {dest_path}")
-        return f"/uploads/{os.path.basename(cos_key)}"
-
-    # 生产模式: 上传到COS
-    client = _get_cos_client()
-    with open(local_path, "rb") as f:
-        client.put_object(
-            Bucket=settings.COS_BUCKET,
-            Body=f,
-            Key=cos_key,
-            EnableMD5=False,
-        )
-
-    url = f"https://{settings.COS_BUCKET}.cos.{settings.COS_REGION}.myqcloud.com/{cos_key}"
-    return url
-
-
-def get_cos_url(cos_key: str) -> str:
-    """根据COS key获取访问URL"""
-    if not settings.COS_SECRET_ID or not HAS_COS_SDK:
-        return f"/uploads/{os.path.basename(cos_key)}"
+def _build_public_cos_url(cos_key: str) -> str:
     return f"https://{settings.COS_BUCKET}.cos.{settings.COS_REGION}.myqcloud.com/{cos_key}"
 
 
+def _extract_cos_key(url_or_key: str) -> str:
+    if not url_or_key:
+        return ""
+
+    if url_or_key.startswith("/uploads/"):
+        return url_or_key
+
+    if url_or_key.startswith("http://") or url_or_key.startswith("https://"):
+        parsed = urlparse(url_or_key)
+        return unquote(parsed.path.lstrip("/"))
+
+    return url_or_key.lstrip("/")
+
+
+async def upload_to_cos(local_path: str, cos_key: str) -> str:
+    """
+    Upload a file to COS.
+    In local mode, copy it into ./uploads and return the local URL.
+    """
+    if not _cos_enabled():
+        dest_path = os.path.join(LOCAL_STORAGE_DIR, os.path.basename(cos_key))
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        shutil.copy2(local_path, dest_path)
+        logger.info("Saved file to local storage: %s", dest_path)
+        return f"/uploads/{os.path.basename(cos_key)}"
+
+    client = _get_cos_client()
+    with open(local_path, "rb") as file_obj:
+        client.put_object(
+            Bucket=settings.COS_BUCKET,
+            Body=file_obj,
+            Key=cos_key,
+            EnableMD5=False,
+        )
+    return _build_public_cos_url(cos_key)
+
+
+def get_cos_url(url_or_key: str, expires: int = 3600) -> str:
+    """
+    Convert a stored COS URL/key into a client-usable URL.
+    For private COS buckets this returns a signed temporary URL.
+    """
+    key = _extract_cos_key(url_or_key)
+    if not key:
+        return ""
+
+    if key.startswith("/uploads/"):
+        return key
+
+    if not _cos_enabled():
+        return f"/uploads/{os.path.basename(key)}"
+
+    client = _get_cos_client()
+    try:
+        return client.get_presigned_url(
+            Method="GET",
+            Bucket=settings.COS_BUCKET,
+            Key=key,
+            Expired=expires,
+        )
+    except Exception as exc:
+        logger.warning("Failed to sign COS URL for %s: %s", key, exc)
+        return _build_public_cos_url(key)
+
+
 async def delete_from_cos(cos_key: str) -> bool:
-    """从COS删除文件"""
-    if not settings.COS_SECRET_ID or not HAS_COS_SDK:
-        # 本地模式: 删除本地文件
+    if not _cos_enabled():
         local_path = os.path.join(LOCAL_STORAGE_DIR, os.path.basename(cos_key))
         if os.path.exists(local_path):
             os.remove(local_path)
