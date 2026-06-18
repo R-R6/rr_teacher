@@ -7,13 +7,14 @@ from sqlalchemy import create_engine
 from app.config import settings
 
 # 异步引擎(用于FastAPI异步请求)
+# 注意: SQLite + aiosqlite 不支持连接池参数,需按 DB 类型分别配置
+_async_engine_kwargs = dict(echo=settings.DEBUG, pool_pre_ping=True, pool_recycle=3600)
+if settings.DB_TYPE != "sqlite":
+    _async_engine_kwargs.update(pool_size=20, max_overflow=10)
+
 async_engine = create_async_engine(
     settings.database_url,
-    echo=settings.DEBUG,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,  # 连接池健康检查
-    pool_recycle=3600,   # 连接回收时间
+    **_async_engine_kwargs,
 )
 
 # 同步引擎(用于Alembic迁移等)

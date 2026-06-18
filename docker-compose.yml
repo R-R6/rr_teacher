@@ -58,25 +58,8 @@ services:
       redis:
         condition: service_started
 
-  # ── OCR 微服务 (PaddleOCR) ──
-  ocr-service:
-    build:
-      context: ./ocr-service
-      dockerfile: Dockerfile
-    container_name: chem_ocr
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    volumes:
-      - ocr_cache:/root/.paddleocr
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-
 volumes:
   mysql_data:
   redis_data:
   uploads_data:
   exports_data:
-  ocr_cache:

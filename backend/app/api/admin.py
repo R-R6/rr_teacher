@@ -13,6 +13,32 @@ from app.auth import get_current_user
 router = APIRouter()
 
 
+@router.get("/diag/tesseract", response_model=dict)
+async def diag_tesseract(current_user: User = Depends(get_current_user)):
+    """诊断端点:查看 Tesseract 实际探测结果(开发用)"""
+    import os
+    from app.config import settings
+    from app.services.ocr_engine import _detect_tesseract
+    binary = _detect_tesseract()
+    return {
+        "settings_TESSERACT_PATH": settings.TESSERACT_PATH,
+        "env_TESSERACT_PATH": os.environ.get("TESSERACT_PATH"),
+        "env_TESSDATA_PREFIX": os.environ.get("TESSDATA_PREFIX"),
+        "settings_TESSDATA_PREFIX": settings.TESSDATA_PREFIX,
+        "detected_binary": binary,
+        "binary_exists": os.path.exists(binary) if binary else None,
+        "pytesseract_importable": _try_pytesseract(),
+    }
+
+
+def _try_pytesseract():
+    try:
+        import pytesseract
+        return True
+    except Exception as e:
+        return f"FAIL: {e!r}"
+
+
 @router.post("/seed-data", response_model=dict)
 async def seed_data(
     current_user: User = Depends(get_current_user),

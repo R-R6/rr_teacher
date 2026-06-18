@@ -85,6 +85,9 @@ class QuestionCreateReq(BaseModel):
     options: Optional[list[dict]] = Field(None, description="选择题选项")
     tag_ids: Optional[list[str]] = Field(None, description="关联标签ID列表")
     ocr_record_id: Optional[str] = Field(None, description="OCR识别记录ID")
+    source_image_url: Optional[str] = Field(
+        None, max_length=512, description="原图URL（看图录入时由前端上传后传入）"
+    )
 
 
 class QuestionUpdateReq(BaseModel):
@@ -97,6 +100,7 @@ class QuestionUpdateReq(BaseModel):
     source: Optional[str] = None
     options: Optional[list[dict]] = None
     tag_ids: Optional[list[str]] = None
+    source_image_url: Optional[str] = None
 
 
 class QuestionResp(BaseModel):
