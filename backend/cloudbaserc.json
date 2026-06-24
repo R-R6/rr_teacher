@@ -1,0 +1,6 @@
+{
+  "envId": "cloud1-d5gls7mdgf0e5f907",
+  "cloudrun": {
+    "name": "chem-backend"
+  }
+}
