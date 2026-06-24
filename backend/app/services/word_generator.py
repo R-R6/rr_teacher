@@ -329,7 +329,11 @@ def generate_test_paper_word(
     return filepath
 
 
-def generate_answer_sheet_word(paper_title: str, questions: list[dict]) -> str:
+def generate_answer_sheet_word(
+    paper_title: str,
+    questions: list[dict],
+    image_map: dict = None,
+) -> str:
     """
     生成答案卷Word文档
     """

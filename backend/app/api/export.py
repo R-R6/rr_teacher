@@ -6,7 +6,9 @@ import os
 import re
 import uuid
 from datetime import datetime
+from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -15,10 +17,28 @@ from app.models import User, Paper, PaperItem, Question, QuestionImage
 from app.schemas import ApiResp
 from app.auth import get_current_user, get_current_teacher
 from app.services.word_generator import generate_test_paper_word, generate_answer_sheet_word
-from app.services.cos_uploader import upload_to_cos
+from app.services.cos_uploader import get_cos_url, read_storage_file, upload_to_cos
 from app.config import settings
 
 router = APIRouter()
+WORD_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _build_export_download_url(stored_url: str | None) -> str | None:
+    if not stored_url:
+        return None
+    return get_cos_url(stored_url, expires=3600)
+
+
+def _build_paper_download_url(paper_id: str, kind: str) -> str:
+    return f"/api/export/paper/{paper_id}/word/download?kind={kind}"
+
+
+def _build_word_filename(title: str | None, suffix: str) -> str:
+    safe_title = re.sub(r'[\\/:*?"<>|\r\n\t]+', "_", title or "试卷").strip(" _")
+    if not safe_title:
+        safe_title = "试卷"
+    return f"{safe_title[:50]}_{suffix}.docx"
 
 
 @router.post("/paper/{paper_id}/word", response_model=ApiResp)
@@ -117,6 +137,7 @@ async def export_paper_to_word(
         answer_path = generate_answer_sheet_word(
             paper_title=paper.title,
             questions=questions_data,
+            image_map=image_map,
         )
         answer_key = f"exports/{current_user.id}/{uuid.uuid4().hex}_答案.docx"
         answer_url = await upload_to_cos(answer_path, answer_key)
@@ -125,14 +146,56 @@ async def export_paper_to_word(
     # 更新试卷的Word URL
     paper.word_url = test_url
     paper.answer_word_url = answer_url
+    # The mini program downloads the returned proxy URL immediately.
+    await db.commit()
 
     return ApiResp(
         message="Word导出成功",
         data={
             "paper_id": paper_id,
-            "test_paper_url": test_url,
-            "answer_sheet_url": answer_url,
+            "test_paper_url": _build_paper_download_url(paper_id, "test"),
+            "answer_sheet_url": _build_paper_download_url(paper_id, "answer") if answer_url else None,
         }
+    )
+
+
+@router.get("/paper/{paper_id}/word/download")
+async def download_paper_word(
+    paper_id: str,
+    kind: str = "test",
+    current_user: User = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download an exported Word file through the backend domain for mini program sharing."""
+    if kind not in {"test", "answer"}:
+        raise HTTPException(status_code=400, detail="无效的文件类型")
+
+    result = await db.execute(select(Paper).where(Paper.id == paper_id))
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(status_code=404, detail="试卷不存在")
+    if paper.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权下载此试卷")
+
+    stored_url = paper.answer_word_url if kind == "answer" else paper.word_url
+    if not stored_url:
+        raise HTTPException(status_code=404, detail="Word文件未生成")
+
+    try:
+        file_bytes, _ = read_storage_file(stored_url)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Word文件不存在")
+
+    suffix = "答案" if kind == "answer" else "试卷"
+    filename = _build_word_filename(paper.title, suffix)
+    quoted_filename = quote(filename)
+    return Response(
+        content=file_bytes,
+        media_type=WORD_MIME,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quoted_filename}",
+            "Cache-Control": "private, max-age=300",
+        },
     )
 
 
@@ -180,4 +243,4 @@ async def export_questions_to_word(
     download_url = await upload_to_cos(file_path, cos_key)
     os.remove(file_path)
 
-    return ApiResp(message="导出成功", data={"word_url": download_url})
+    return ApiResp(message="导出成功", data={"word_url": _build_export_download_url(download_url)})

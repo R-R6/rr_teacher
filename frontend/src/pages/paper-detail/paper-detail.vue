@@ -164,7 +164,8 @@
 </template>
 
 <script>
-import { papersAPI, exportAPI, API_BASE } from '../../utils/api.js'
+import { papersAPI, exportAPI, buildDownloadUrl } from '../../utils/api.js'
+import { buildWordFileName, exportWordToWechat } from '../../utils/export-word.js'
 import { QUESTION_TYPES, DIFFICULTY_LEVELS, latexToUnicode } from '../../utils/util.js'
 
 export default {
@@ -284,46 +285,33 @@ export default {
       this.exporting = true
       this.showExportModal = false
       uni.showLoading({ title: '正在生成Word...' })
+      let rawUrl = ''
+      let exportFailed = false
       try {
         const res = await exportAPI.paperWord(this.paperId, this.includeAnswer)
-        uni.hideLoading()
-        const rawUrl = res.test_paper_url ? (res.test_paper_url.startsWith('http') ? res.test_paper_url : API_BASE + res.test_paper_url) : ''
-        // URL编码中文文件名
-        const url = rawUrl.split('/').map((part, i) => i < 3 ? part : encodeURIComponent(part)).join('/')
-        if (!url) {
-          uni.showToast({ title: '导出失败', icon: 'none' })
-          this.exporting = false
-          return
-        }
-        uni.downloadFile({
-          url,
-          success: (r) => {
-            console.log('下载完成:', r.tempFilePath, r.statusCode)
-            if (r.statusCode === 200) {
-              wx.openDocument({
-                filePath: r.tempFilePath,
-                fileType: 'docx',
-                showMenu: true,
-                success: () => {
-                  console.log('文档打开成功')
-                },
-                fail: (err) => {
-                  console.log('文档打开失败:', JSON.stringify(err))
-                  uni.showToast({ title: '文档已下载，请在文件管理中查看', icon: 'none', duration: 3000 })
-                },
-              })
-            }
-          },
-          fail: (err) => {
-            console.log('下载失败:', JSON.stringify(err))
-            uni.showToast({ title: '下载失败', icon: 'none' })
-          },
-        })
+        rawUrl = res.test_paper_url || ''
       } catch (e) {
+        exportFailed = true
+      } finally {
         uni.hideLoading()
-        uni.showToast({ title: '导出失败', icon: 'none' })
+        this.exporting = false
       }
-      this.exporting = false
+
+      const url = buildDownloadUrl(rawUrl)
+      if (exportFailed || !url) {
+        uni.showToast({ title: '导出失败', icon: 'none' })
+        return
+      }
+
+      try {
+        await exportWordToWechat({
+          url,
+          fileName: buildWordFileName(this.paper && this.paper.title, '试卷'),
+        })
+      } catch (err) {
+        console.log('Word转发失败:', JSON.stringify(err))
+        uni.showToast({ title: 'Word转发失败', icon: 'none' })
+      }
     },
   },
 }

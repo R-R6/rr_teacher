@@ -108,6 +108,32 @@ def get_cos_url(url_or_key: str, expires: int = 3600) -> str:
         return _build_public_cos_url(key)
 
 
+def read_storage_file(url_or_key: str) -> tuple[bytes, str]:
+    """
+    Read a stored file from COS or local fallback storage.
+    Returns file bytes and a best-effort filename.
+    """
+    key = _extract_cos_key(url_or_key)
+    if not key:
+        raise FileNotFoundError("empty storage key")
+
+    filename = os.path.basename(key)
+    if key.startswith("/uploads/") or not _cos_enabled():
+        local_path = os.path.join(LOCAL_STORAGE_DIR, filename)
+        if not os.path.exists(local_path):
+            raise FileNotFoundError(local_path)
+        with open(local_path, "rb") as file_obj:
+            return file_obj.read(), filename
+
+    client = _get_cos_client()
+    response = client.get_object(
+        Bucket=settings.COS_BUCKET,
+        Key=key,
+    )
+    stream = response["Body"].get_raw_stream()
+    return stream.read(), filename
+
+
 async def delete_from_cos(cos_key: str) -> bool:
     if not _cos_enabled():
         local_path = os.path.join(LOCAL_STORAGE_DIR, os.path.basename(cos_key))

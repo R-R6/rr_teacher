@@ -1,29 +1,31 @@
 /**
- * API 请求封装
- * 统一处理请求、响应、错误、Token 刷新
+ * API request helpers.
  */
 
-// 后端地址（不含 /api 后缀）
-// 开发环境: http://10.168.3.24:8000（本机后端）
-// 生产环境: 云托管域名
 export const API_BASE = 'https://chem-backend-268016-4-1440725000.sh.run.tcloudbase.com'
 const BASE_URL = API_BASE + '/api'
 
-// 请求拦截器 - 自动附加 Token
+export function buildDownloadUrl(url) {
+  if (!url) return ''
+  const fullUrl = url.startsWith('http') ? url : API_BASE + url
+  if (fullUrl.includes('?')) return fullUrl
+  return fullUrl.split('/').map((part, index) => index < 3 ? part : encodeURIComponent(part)).join('/')
+}
+
 function getToken() {
   return uni.getStorageSync('access_token') || ''
 }
 
-// 统一请求方法
 function request(options) {
   return new Promise((resolve, reject) => {
     const token = getToken()
+    const showErrorToast = options.showErrorToast !== false
     const header = {
       'Content-Type': 'application/json',
       ...(options.header || {})
     }
     if (token) {
-      header['Authorization'] = `Bearer ${token}`
+      header.Authorization = `Bearer ${token}`
     }
 
     uni.request({
@@ -38,39 +40,42 @@ function request(options) {
           if (body.code === 0) {
             resolve(body.data)
           } else {
-            uni.showToast({ title: body.message || '请求失败', icon: 'none' })
+            if (showErrorToast) {
+              uni.showToast({ title: body.message || '请求失败', icon: 'none' })
+            }
             reject(body)
           }
         } else if (res.statusCode === 401) {
-          // Token 过期，尝试刷新
-          handleTokenExpired().then(() => {
-            // 重试原请求
-            request(options).then(resolve).catch(reject)
-          }).catch(() => {
-            uni.removeStorageSync('access_token')
-            uni.removeStorageSync('refresh_token')
-            uni.removeStorageSync('user_info')
-            uni.reLaunch({ url: '/pages/login/login' })
-            reject({ code: 401, message: '登录已过期' })
-          })
+          handleTokenExpired()
+            .then(() => request(options).then(resolve).catch(reject))
+            .catch(() => {
+              uni.removeStorageSync('access_token')
+              uni.removeStorageSync('refresh_token')
+              uni.removeStorageSync('user_info')
+              uni.reLaunch({ url: '/pages/login/login' })
+              reject({ code: 401, message: '登录已过期' })
+            })
         } else {
           const msg = res.data?.detail || res.data?.message || `请求错误 ${res.statusCode}`
-          uni.showToast({ title: msg, icon: 'none' })
+          if (showErrorToast) {
+            uni.showToast({ title: msg, icon: 'none' })
+          }
           reject(res.data)
         }
       },
       fail: (err) => {
-        uni.showToast({ title: '网络连接失败', icon: 'none' })
+        if (showErrorToast) {
+          uni.showToast({ title: '网络连接失败', icon: 'none' })
+        }
         reject(err)
       }
     })
   })
 }
 
-// Token 刷新
 async function handleTokenExpired() {
   const refreshToken = uni.getStorageSync('refresh_token')
-  if (!refreshToken) throw new Error('无 refresh_token')
+  if (!refreshToken) throw new Error('No refresh token')
 
   const res = await new Promise((resolve, reject) => {
     uni.request({
@@ -89,10 +94,36 @@ async function handleTokenExpired() {
     uni.setStorageSync('refresh_token', refresh_token)
     return true
   }
-  throw new Error('刷新失败')
+  throw new Error('Refresh failed')
 }
 
-// ========== Auth API ==========
+function uploadImageFile(url, filePath, formData = {}) {
+  return new Promise((resolve, reject) => {
+    const token = getToken()
+    uni.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      formData,
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 120000,
+      success: (res) => {
+        const body = JSON.parse(res.data)
+        if (body.code === 0) {
+          resolve(body.data)
+        } else {
+          uni.showToast({ title: body.message || '上传失败', icon: 'none' })
+          reject(body)
+        }
+      },
+      fail: (err) => {
+        uni.showToast({ title: '上传失败', icon: 'none' })
+        reject(err)
+      }
+    })
+  })
+}
+
 export const authAPI = {
   login: (data) => request({ url: '/auth/login', method: 'POST', data }),
   register: (data) => request({ url: '/auth/register', method: 'POST', data }),
@@ -102,7 +133,6 @@ export const authAPI = {
   bindPhone: (phone) => request({ url: `/auth/bind-phone?phone=${phone}`, method: 'POST' }),
 }
 
-// ========== Questions API ==========
 export const questionsAPI = {
   list: (params) => request({ url: '/questions/', data: params }),
   detail: (id) => request({ url: `/questions/${id}` }),
@@ -112,40 +142,19 @@ export const questionsAPI = {
   batchDelete: (ids) => request({ url: '/questions/batch-delete', method: 'POST', data: { ids } }),
 }
 
-// ========== OCR API ==========
 export const ocrAPI = {
-  recognize: (filePath, engine = 'tesseract') => {
-    return new Promise((resolve, reject) => {
-      const token = getToken()
-      uni.uploadFile({
-        url: `${BASE_URL}/ocr/recognize`,
-        filePath,
-        name: 'file',
-        formData: { engine },
-        header: { Authorization: `Bearer ${token}` },
-        timeout: 120000,  // OCR 需要更长超时（模型推理）
-        success: (res) => {
-          const body = JSON.parse(res.data)
-          if (body.code === 0) {
-            resolve(body.data)
-          } else {
-            uni.showToast({ title: body.message || '识别失败', icon: 'none' })
-            reject(body)
-          }
-        },
-        fail: (err) => {
-          uni.showToast({ title: '上传失败', icon: 'none' })
-          reject(err)
-        }
-      })
-    })
-  },
+  recognize: (filePath, engine = 'tesseract') =>
+    uploadImageFile(`${BASE_URL}/ocr/recognize`, filePath, { engine }),
   listEngines: () => request({ url: '/ocr/engines' }),
   correct: (data) => request({ url: '/ocr/correct', method: 'POST', data }),
   history: (params) => request({ url: '/ocr/history', data: params }),
 }
 
-// ========== Papers API ==========
+export const uploadAPI = {
+  image: (filePath, purpose = 'manual_input') =>
+    uploadImageFile(`${BASE_URL}/upload/image`, filePath, { purpose }),
+}
+
 export const papersAPI = {
   list: (params) => request({ url: '/papers/', data: params }),
   detail: (id) => request({ url: `/papers/${id}` }),
@@ -154,7 +163,6 @@ export const papersAPI = {
   delete: (id) => request({ url: `/papers/${id}`, method: 'DELETE' }),
 }
 
-// ========== Tags API ==========
 export const tagsAPI = {
   list: (params) => request({ url: '/tags/', data: params }),
   create: (data) => request({ url: '/tags/', method: 'POST', data }),
@@ -162,7 +170,6 @@ export const tagsAPI = {
   seed: () => request({ url: '/tags/seed', method: 'POST' }),
 }
 
-// ========== Practice API (学生端) ==========
 export const practiceAPI = {
   getQuestions: (params) => request({ url: '/practice/questions', data: params }),
   submitAnswer: (data) => request({ url: '/practice/submit', method: 'POST', data }),
@@ -170,7 +177,6 @@ export const practiceAPI = {
   getTrend: (days) => request({ url: `/practice/trend?days=${days || 7}` }),
 }
 
-// ========== Mistakes API (错题本) ==========
 export const mistakesAPI = {
   list: (params) => request({ url: '/mistakes', data: params }),
   add: (questionId) => request({ url: '/mistakes', method: 'POST', data: { question_id: questionId } }),
@@ -180,11 +186,10 @@ export const mistakesAPI = {
   getStats: () => request({ url: '/mistakes/stats' }),
 }
 
-// ========== Export API ==========
 export const exportAPI = {
   paperWord: (paperId, includeAnswer) => {
     const suffix = includeAnswer === false ? '?include_answer=false' : ''
-    return request({ url: `/export/paper/${paperId}/word${suffix}`, method: 'POST' })
+    return request({ url: `/export/paper/${paperId}/word${suffix}`, method: 'POST', showErrorToast: false })
   },
   questionsWord: (data) => request({ url: '/export/questions/word', method: 'POST', data }),
 }
@@ -193,6 +198,7 @@ export default {
   auth: authAPI,
   questions: questionsAPI,
   ocr: ocrAPI,
+  upload: uploadAPI,
   papers: papersAPI,
   tags: tagsAPI,
   export: exportAPI,
