@@ -1,6 +1,6 @@
 # 云托管环境变量模板
 
-最后更新：2026-06-18
+最后更新：2026-06-24
 
 用途：
 - 腾讯云 CloudBase Run / 云托管更新镜像后
@@ -25,8 +25,9 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v21
   "DB_NAME": "<your-db-name>",
   "DEBUG": "false",
   "SWAGGER_ENABLED": "false",
+  "SECRET_KEY": "<your-32-plus-char-secret-key>",
   "JWT_SECRET_KEY": "<your-jwt-secret>",
-  "CORS_ORIGINS": "*",
+  "CORS_ORIGINS": "https://servicewechat.com",
   "UPLOAD_DIR": "./uploads",
   "EXPORT_DIR": "./exports",
   "WECHAT_APPID": "<your-wechat-appid>",
@@ -51,4 +52,6 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v21
 - 默认 OCR 仍然使用 `tesseract`
 - 复杂题由老师手动切换到 `doubao_vision`
 - `PIX2TEXT_*` 和 `DOUBAO_*` 同时保留，方便做并行对比测试
+- `DEBUG=false` 时后端会拒绝默认密钥、过短密钥、`SWAGGER_ENABLED=true` 和 `CORS_ORIGINS=*`
+- `SECRET_KEY` 与 `JWT_SECRET_KEY` 必须在云托管环境变量中显式配置，建议使用 32 位以上随机字符串
 - 真实环境变量请维护在本地文件：`docs/CloudRun_Env_Vars.local.md`

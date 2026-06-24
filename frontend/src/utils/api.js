@@ -2,7 +2,9 @@
  * API request helpers.
  */
 
-export const API_BASE = 'https://chem-backend-268016-4-1440725000.sh.run.tcloudbase.com'
+export { API_BASE } from './config.js'
+import { API_BASE } from './config.js'
+
 const BASE_URL = API_BASE + '/api'
 
 export function buildDownloadUrl(url) {

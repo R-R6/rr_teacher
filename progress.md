@@ -11,11 +11,18 @@
 | 题目附图链路 | 已完成第一版 | 结果页预览、编辑页补拍、详情页展示、后端挂接已打通 |
 | Word 导出转发 | 已完成第一版 | 手机端可生成、预览并转发 Word |
 | Word 附图导出 | 待开发 | 题目附图尚未稳定带入 Word |
-| 生产化配置治理 | 待开发 | API 地址、密钥、环境变量仍需治理 |
+| 生产化配置治理 | 已完成第一版 | API 地址支持环境注入，生产密钥和环境变量已增加启动校验 |
 | 成本控制与限流 | 待开发 | 仍缺用户级/全局 OCR 调用额度 |
 | 数据库迁移治理 | 待开发 | 生产 schema 仍需 Alembic 管理 |
 
 ## 本轮完成记录
+
+### 2026-06-24：生产化配置治理第一版
+
+- 前端 API 地址改为通过 `VITE_API_BASE` / `UNI_API_BASE` 注入，默认仍回退到当前 CloudRun 后端。
+- 后端默认密钥改为开发占位值，`DEBUG=false` 时会拒绝默认/过短密钥、`CORS_ORIGINS=*` 和 Swagger 开启。
+- 补齐 `backend/.env.example`、`backend/.env.cloud.example`、`frontend/.env.example` 和 CloudRun 环境变量模板。
+- 新增配置测试，防止 API 地址回退为硬编码和生产配置校验被绕过。
 
 ### 2026-06-24：架构诊断与路线校准
 
@@ -55,6 +62,9 @@
 - `node --test tests/export-download.test.mjs tests/manifest.test.mjs tests/ocr-camera-fallback.test.mjs tests/ocr-result-helpers.test.mjs` 通过。
 - `python -m py_compile app/api/export.py app/services/cos_uploader.py app/api/questions.py app/services/doubao_ocr.py app/services/word_generator.py` 通过。
 - 使用 Codex 内置 Python 运行 `python -m unittest tests.test_export_api tests.test_word_generator` 通过。
+- `node --test tests/api-config.test.mjs tests/export-download.test.mjs tests/manifest.test.mjs tests/ocr-camera-fallback.test.mjs tests/ocr-result-helpers.test.mjs` 通过。
+- `python -m unittest tests.test_config` 通过。
+- `python -m py_compile app/config.py` 通过。
 - `npx uni build -p mp-weixin` 通过。
 - 用户已在新云托管镜像中验证手机端 Word 生成、预览和转发可用。
 
@@ -62,8 +72,6 @@
 
 | 优先级 | 问题 | 状态 |
 | --- | --- | --- |
-| P0 | 前端 API_BASE 仍硬编码线上 CloudRun 地址 | 待处理 |
-| P0 | 后端生产密钥和环境变量治理需要收紧 | 待处理 |
 | P0 | OCR/豆包调用缺少用户级和全局额度控制 | 待处理 |
 | P0 | 生产数据库缺少 Alembic 迁移治理 | 待处理 |
 | P1 | Word 导出还没有稳定带出题目附图 | 待开发 |
@@ -73,25 +81,7 @@
 
 ## 下一步开发计划
 
-### 1. 配置治理（P0）
-
-目标：本地、CloudRun、未来 CVM 都能通过配置切换环境。
-
-任务：
-
-- 前端 API_BASE 支持环境注入；
-- 后端默认密钥移出代码；
-- 整理 `.env.example`、`.env.docker`、`.env.cloud.example`；
-- 检查 CloudRun 环境变量；
-- 更新部署文档。
-
-验收：
-
-- 小程序构建不同环境无需手改源码；
-- 仓库不包含真实密钥；
-- 后端生产启动依赖显式环境变量。
-
-### 2. OCR 成本控制（P0）
+### 1. OCR 成本控制（P0）
 
 目标：控制豆包和在线 OCR 调用成本。
 
@@ -109,7 +99,7 @@
 - 全局预算触发后不再继续调用豆包；
 - 多实例下仍能正确限制。
 
-### 3. 数据库迁移治理（P0）
+### 2. 数据库迁移治理（P0）
 
 目标：生产 schema 可追踪、可回滚。
 
@@ -126,7 +116,7 @@
 - 字段变更必须有 migration；
 - 生产部署前有 schema 变更检查。
 
-### 4. Word 附图导出（P1）
+### 3. Word 附图导出（P1）
 
 目标：带附图题目导出 Word。
 
@@ -144,7 +134,7 @@
 - 图片缺失时有日志；
 - 不影响无图试卷导出。
 
-### 5. 服务层拆分与任务化（P1）
+### 4. 服务层拆分与任务化（P1）
 
 目标：降低 API 层复杂度，为长任务打基础。
 

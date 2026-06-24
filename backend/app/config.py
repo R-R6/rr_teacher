@@ -8,11 +8,16 @@ from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings
 
 
+DEFAULT_SECRET_KEY = "dev-only-change-me-secret-key"
+DEFAULT_JWT_SECRET_KEY = "dev-only-change-me-jwt-secret-key"
+MIN_SECRET_LENGTH = 32
+
+
 class Settings(BaseSettings):
     APP_NAME: str = "高中化学教学辅助系统"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    SECRET_KEY: str = "dfNFId-uJuaPoUozLNVEMn11Ht5cvt3zecY7_BgthG1Ylw-GWxqSxLnxslBLdFbR"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY
 
     DB_TYPE: str = "sqlite"
     DB_HOST: str = "127.0.0.1"
@@ -43,7 +48,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://127.0.0.1:6379/0"
 
-    JWT_SECRET_KEY: str = "_8jmWF5Rf4NPOCXrBCSSNm1IZrx-z6VIEkPci9bMqMYr4Rv6ESKaI5pBVtrHxx2f"
+    JWT_SECRET_KEY: str = DEFAULT_JWT_SECRET_KEY
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080
@@ -86,8 +91,39 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
+    def validate_runtime(self) -> None:
+        """Fail fast for unsafe production configuration."""
+        if self.DEBUG:
+            return
+
+        errors: list[str] = []
+        self._validate_secret("SECRET_KEY", self.SECRET_KEY, DEFAULT_SECRET_KEY, errors)
+        self._validate_secret("JWT_SECRET_KEY", self.JWT_SECRET_KEY, DEFAULT_JWT_SECRET_KEY, errors)
+
+        if self.DB_TYPE.lower() == "mysql" and not self.DB_PASSWORD.strip():
+            errors.append("DB_PASSWORD must be set when DB_TYPE=mysql")
+        if self.CORS_ORIGINS.strip() == "*":
+            errors.append("CORS_ORIGINS must not be '*' when DEBUG=false")
+        if self.SWAGGER_ENABLED:
+            errors.append("SWAGGER_ENABLED must be false when DEBUG=false")
+
+        if errors:
+            joined = "; ".join(errors)
+            raise RuntimeError(f"Invalid production configuration: {joined}")
+
+    @staticmethod
+    def _validate_secret(name: str, value: str, default_value: str, errors: list[str]) -> None:
+        secret = (value or "").strip()
+        if not secret:
+            errors.append(f"{name} must be set")
+        elif secret == default_value:
+            errors.append(f"{name} must not use the development default")
+        elif len(secret) < MIN_SECRET_LENGTH:
+            errors.append(f"{name} must be at least {MIN_SECRET_LENGTH} characters")
+
 
 settings = Settings()
+settings.validate_runtime()
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 os.makedirs(settings.EXPORT_DIR, exist_ok=True)
