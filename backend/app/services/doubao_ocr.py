@@ -76,6 +76,10 @@ def _normalize_options(options: Any) -> list[dict[str, str]]:
         else:
             label = chr(ord("A") + idx)
             text = str(item).strip()
+
+        # Strip existing label like "A.", "B.", "C.", etc. from the beginning of the text
+        text = re.sub(r"^[A-Z][.．]\s*", "", text, count=1)
+
         normalized.append({"label": label, "text": text})
     return normalized
 
@@ -268,7 +272,7 @@ async def doubao_vision_recognize(image_path: str, **options) -> dict[str, Any]:
             "confidence": 0.0,
             "engine": "doubao_vision",
             "images": [],
-            "error": f"Doubao call failed: {exc}",
+            "error": f"Doubao call failed: {repr(exc)}",
         }
 
 

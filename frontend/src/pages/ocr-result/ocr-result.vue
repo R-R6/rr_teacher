@@ -1,23 +1,35 @@
 <template>
   <view class="result-page">
-    <view class="image-section" v-if="image_url">
-      <image :src="image_url" class="result-image" mode="aspectFit" @tap="previewImage" />
-      <view class="confidence-badge" v-if="confidence">
-        置信度 {{ (confidence * 100).toFixed(0) }}%
+    <view class="image-section" v-if="imageUrl">
+      <image :src="imageUrl" class="result-image" mode="aspectFit" @tap="previewImage" />
+      <view class="quality-badge">
+        <text class="quality-badge__label">{{ qualityInfo.label }}</text>
+        <text class="quality-badge__note">{{ qualityInfo.note }}</text>
       </view>
-      <view v-if="engine" class="engine-badge" :class="`engine-badge--${engineClass}`">
-        {{ engineLabel }}
+      <view v-if="engineInfo" class="engine-badge" :class="`engine-badge--${engineInfo.theme}`">
+        <text class="engine-badge__primary">{{ engineInfo.primary }}</text>
+        <text class="engine-badge__secondary">{{ engineInfo.secondary }}</text>
       </view>
     </view>
 
-    <view v-if="images && images.length" class="figure-section">
+    <view v-if="imageUrl" class="preview-action" @tap="previewImage">
+      <text>查看原图</text>
+    </view>
+
+    <view v-if="reviewTipText" class="review-tip">
+      <text class="review-tip__title">{{ showFigureSuggestion ? '建议补拍附图' : '建议人工复核' }}</text>
+      <text class="review-tip__body">{{ reviewTipText }}</text>
+      <view v-if="showFigureSuggestion" class="review-tip__action" @tap="goEditPage(true)">去补拍附图</view>
+    </view>
+
+    <view v-if="images.length" class="figure-section">
       <view class="section-header">
-        <text class="section-title">识别出的附图 {{ images.length }} 张</text>
+        <text class="section-title">当前题目附图 {{ images.length }} 张</text>
       </view>
       <scroll-view scroll-x class="figure-scroll">
         <view
           v-for="(img, idx) in images"
-          :key="idx"
+          :key="img.id || idx"
           class="figure-card"
           @tap="previewFigure(img.image_url)"
         >
@@ -27,53 +39,33 @@
       </scroll-view>
     </view>
 
-    <view v-if="showFigureSuggestion" class="figure-tip">
-      <text class="figure-tip__title">附图建议</text>
-      <text class="figure-tip__body">{{ figureSuggestionText }}</text>
-    </view>
-
     <view v-if="error" class="error-bar">提示：{{ error }}</view>
 
     <view class="result-section">
       <view class="section-header">
-        <text class="section-title">{{ editableSectionTitle }}</text>
+        <text class="section-title">题目正文（可快速修改）</text>
         <text class="copy-btn" @tap="copyText(editableContent)">复制</text>
       </view>
       <view class="result-box">
         <textarea
+          :key="textareaKey"
           class="result-textarea"
-          v-model="editableContent"
-          placeholder="识别结果将显示在这里，可直接修改后再入库"
+          :value="editableContent"
           auto-height
+          maxlength="-1"
+          placeholder="识别后的题目正文会显示在这里，可先改几个错字或漏字，再快速保存。"
+          @input="handleEditableInput"
         />
       </view>
     </view>
 
     <view v-if="showFormulaPanel" class="result-section">
       <view class="section-header">
-        <text class="section-title">公式结果（参考）</text>
-        <text class="copy-btn" @tap="copyText(result_latex)">复制</text>
+        <text class="section-title">公式识别结果（参考）</text>
+        <text class="copy-btn" @tap="copyText(resultLatex)">复制</text>
       </view>
       <view class="result-box">
-        <text class="preview-text">{{ result_latex }}</text>
-      </view>
-    </view>
-
-    <view v-if="showReviewPanel" class="result-section">
-      <view class="section-header">
-        <text class="section-title">结构化识别提示</text>
-      </view>
-      <view class="result-box">
-        <view v-if="structured && structured.review_notes && structured.review_notes.length">
-          <text
-            v-for="(note, idx) in structured.review_notes"
-            :key="idx"
-            class="review-note"
-          >
-            {{ idx + 1 }}. {{ note }}
-          </text>
-        </view>
-        <text v-else class="preview-text">当前无额外提示</text>
+        <text class="preview-text">{{ resultLatex }}</text>
       </view>
     </view>
 
@@ -81,7 +73,7 @@
       <view class="action-btn btn-primary" @tap="showQuickSave = true">
         <text>快速保存</text>
       </view>
-      <view class="action-btn btn-outline" @tap="goEditPage">
+      <view class="action-btn btn-outline" @tap="goEditPage(false)">
         <text>编辑入库</text>
       </view>
     </view>
@@ -92,14 +84,15 @@
         <text class="modal-label">题型</text>
         <view class="modal-types">
           <view
-            v-for="(t, key) in types"
+            v-for="(item, key) in types"
             :key="key"
             :class="['modal-type', saveForm.question_type === key ? 'active' : '']"
             @tap="saveForm.question_type = key"
           >
-            <text>{{ t.icon }} {{ t.label }}</text>
+            <text>{{ item.icon }} {{ item.label }}</text>
           </view>
         </view>
+
         <text class="modal-label">难度</text>
         <view class="modal-diff">
           <view
@@ -108,11 +101,13 @@
             :class="['diff-dot', saveForm.difficulty >= i ? 'active' : '']"
             @tap="saveForm.difficulty = i"
           >
-            <text>{{ ['极易', '较易', '中等', '较难', '极难'][i - 1] }}</text>
+            <text>{{ difficultyLabels[i - 1] }}</text>
           </view>
         </view>
+
         <text class="modal-label">来源（选填）</text>
         <input class="modal-input" v-model="saveForm.source" placeholder="如：2024高考全国卷" />
+
         <view class="modal-actions">
           <view class="modal-btn cancel" @tap="showQuickSave = false">取消</view>
           <view class="modal-btn confirm" @tap="quickSave">确认保存</view>
@@ -125,20 +120,34 @@
 <script>
 import { questionsAPI } from '../../utils/api.js'
 import { QUESTION_TYPES } from '../../utils/util.js'
+import {
+  buildQuestionContent,
+  buildOcrEditData,
+  getQualitySummary,
+  shouldSuggestSupplementalFigure,
+} from '../../utils/ocr-result-helpers.js'
+
+const ENGINE_LABELS = {
+  tesseract: { primary: '极速识别', secondary: 'Tesseract', theme: 'tesseract' },
+  pix2text_online: { primary: '高精度识别（公式）', secondary: 'Pix2Text', theme: 'pix2text' },
+  pix2text_local: { primary: '高精度识别（公式）', secondary: 'Pix2Text', theme: 'pix2text' },
+  doubao_vision: { primary: '高精度识别（复杂题）', secondary: '豆包视觉', theme: 'doubao' },
+}
 
 export default {
   data() {
     return {
-      record_id: '',
-      image_url: '',
-      result_latex: '',
-      result_text: '',
+      recordId: '',
+      imageUrl: '',
+      resultLatex: '',
+      resultText: '',
       editableContent: '',
       confidence: 0,
       engine: '',
       error: '',
       images: [],
       structured: null,
+      textareaKey: 0,
       showQuickSave: false,
       saveForm: {
         question_type: 'choice',
@@ -146,69 +155,63 @@ export default {
         source: '',
       },
       types: QUESTION_TYPES,
+      difficultyLabels: ['极易', '较易', '中等', '较难', '极难'],
     }
   },
   computed: {
-    engineClass() {
-      if (this.engine === 'tesseract') return 'tesseract'
-      if (this.engine && this.engine.startsWith('pix2text')) return 'pix2text'
-      if (this.engine === 'doubao_vision') return 'doubao'
-      return 'other'
+    engineInfo() {
+      return ENGINE_LABELS[this.engine] || null
     },
-    engineLabel() {
-      if (this.engine === 'tesseract') return '极速识别（Tesseract）'
-      if (this.engine === 'pix2text_online') return '高精度（Pix2Text 在线）'
-      if (this.engine === 'pix2text_local') return '高精度（Pix2Text 本地）'
-      if (this.engine === 'doubao_vision') return '高精度（豆包视觉）'
-      return this.engine || ''
-    },
-    editableSectionTitle() {
-      return this.engine === 'pix2text_online' ? '识别结果（可编辑）' : '题目正文（可编辑）'
+    qualityInfo() {
+      return getQualitySummary({
+        confidence: this.confidence,
+        structured: this.structured,
+      })
     },
     showFormulaPanel() {
-      return this.engine === 'pix2text_online' && !!this.result_latex && this.result_latex !== this.editableContent
-    },
-    showReviewPanel() {
-      return this.engine === 'doubao_vision' && !!this.structured
+      return this.engine && this.engine.startsWith('pix2text') && this.resultLatex && this.resultLatex !== this.editableContent
     },
     showFigureSuggestion() {
-      return !!(this.structured && this.structured.figure_analysis)
+      return shouldSuggestSupplementalFigure({
+        content: this.editableContent,
+        images: this.images,
+        structured: this.structured,
+        result_text: this.resultText,
+        result_latex: this.resultLatex,
+      })
     },
-    figureSuggestionText() {
-      const figureAnalysis = this.structured?.figure_analysis
-      if (!figureAnalysis) return ''
-      if (figureAnalysis.should_keep_original) {
-        return figureAnalysis.description || '这道题包含附图，建议保留原图并在入库页继续处理。'
+    reviewTipText() {
+      if (this.showFigureSuggestion) {
+        return '检测到这道题可能包含流程图、装置图或结构图，建议在编辑入库页补拍或维护题目附图。'
       }
-      return figureAnalysis.description || '当前题目未检测到需要单独保留的附图。'
+      if (this.qualityInfo.needsReview) {
+        return '这次识别结果建议再复核一遍。小问题可以直接修改后快速保存，复杂问题再进入编辑入库。'
+      }
+      return ''
     },
   },
   onLoad(options) {
-    if (options.data) {
-      try {
-        const data = JSON.parse(decodeURIComponent(options.data))
-        this.record_id = data.record_id || ''
-        this.image_url = data.origin_image_url || ''
-        this.result_latex = data.result_latex || ''
-        this.result_text = data.result_text || ''
-        this.confidence = data.confidence || 0
-        this.engine = data.engine || ''
-        this.error = data.error || ''
-        this.images = data.images || []
-        this.structured = data.structured || null
-        this.editableContent = this.resolveEditableContent(data)
-      } catch (e) {
-        console.error('解析识别结果失败', e)
-      }
+    if (!options.data) return
+    try {
+      const data = JSON.parse(decodeURIComponent(options.data))
+      this.recordId = data.record_id || ''
+      this.imageUrl = data.origin_image_url || ''
+      this.resultLatex = data.result_latex || ''
+      this.resultText = data.result_text || ''
+      this.confidence = data.confidence || 0
+      this.engine = data.engine || ''
+      this.error = data.error || ''
+      this.images = data.images || []
+      this.structured = data.structured || null
+      this.editableContent = buildQuestionContent(data)
+      this.textareaKey += 1
+    } catch (error) {
+      console.error('解析识别结果失败', error)
     }
   },
   methods: {
-    resolveEditableContent(data) {
-      const structuredQuestion = data.structured?.question_text || ''
-      if (this.engine === 'doubao_vision' && structuredQuestion) return structuredQuestion
-      if (data.result_text) return data.result_text
-      if (data.result_latex) return data.result_latex
-      return ''
+    handleEditableInput(event) {
+      this.editableContent = event.detail.value
     },
     copyText(text) {
       uni.setClipboardData({
@@ -217,18 +220,17 @@ export default {
       })
     },
     previewImage() {
-      if (this.image_url) {
-        uni.previewImage({ urls: [this.image_url], current: this.image_url })
-      }
+      if (!this.imageUrl) return
+      uni.previewImage({ urls: [this.imageUrl], current: this.imageUrl })
     },
     previewFigure(url) {
-      if (url) {
-        uni.previewImage({ urls: [url], current: url })
-      }
+      if (!url) return
+      uni.previewImage({ urls: [url], current: url })
     },
     async quickSave() {
       if (!this.editableContent.trim()) {
-        return uni.showToast({ title: '识别内容为空', icon: 'none' })
+        uni.showToast({ title: '识别内容为空', icon: 'none' })
+        return
       }
       uni.showLoading({ title: '保存中...' })
       try {
@@ -248,7 +250,8 @@ export default {
             ]
             : [],
           tag_ids: [],
-          ocr_record_id: this.record_id || undefined,
+          source_image_url: this.imageUrl || undefined,
+          ocr_record_id: this.recordId || undefined,
         })
         uni.hideLoading()
         this.showQuickSave = false
@@ -263,24 +266,37 @@ export default {
             } else {
               uni.switchTab({ url: '/pages/questions/questions' })
             }
-          },
+          }
         })
-      } catch (e) {
+      } catch (error) {
         uni.hideLoading()
       }
     },
-    goEditPage() {
-      const params = encodeURIComponent(
-        JSON.stringify({
-          content: this.editableContent,
-          raw_latex: this.result_latex,
-          raw_text: this.result_text,
-          structured: this.structured,
-          ocr_record_id: this.record_id,
-        }),
-      )
+    goEditPage(focusFigureSection) {
+      const editData = buildOcrEditData({
+        rawContent: this.editableContent || '',
+        recordId: this.recordId || '',
+        imageUrl: this.imageUrl || '',
+        engine: this.engine || '',
+        structured: this.structured || null,
+        focusFigure: !!focusFigureSection,
+      })
+
+      try {
+        uni.setStorageSync('ocrEditData', editData)
+        uni.removeStorageSync('ocrMinimalData')
+      } catch (e) {
+        console.error('[OCR] 存储失败:', e)
+        uni.showToast({ title: '准备编辑数据失败', icon: 'none' })
+        return
+      }
+
       uni.navigateTo({
-        url: `/pages/question-edit/question-edit?data=${params}`,
+        url: `/pages/question-edit/question-edit`,
+        fail: (err) => {
+          console.error('[OCR] 跳转失败:', err)
+          uni.showToast({ title: '跳转失败', icon: 'none' })
+        }
       })
     },
   },
@@ -294,8 +310,68 @@ export default {
   padding-bottom: 160rpx;
 }
 
-.error-bar,
-.figure-tip {
+.image-section {
+  margin: 24rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+}
+
+.result-image {
+  width: 100%;
+  height: 400rpx;
+}
+
+.quality-badge,
+.engine-badge {
+  position: absolute;
+  top: 16rpx;
+  border-radius: 20rpx;
+  padding: 8rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.quality-badge {
+  right: 16rpx;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  align-items: flex-end;
+}
+
+.quality-badge__label {
+  font-size: 22rpx;
+}
+
+.quality-badge__note {
+  font-size: 18rpx;
+  opacity: 0.8;
+}
+
+.engine-badge {
+  left: 16rpx;
+  color: #fff;
+
+  &--tesseract { background: rgba(34, 197, 94, 0.88); }
+  &--pix2text { background: rgba(139, 92, 246, 0.92); }
+  &--doubao { background: rgba(59, 130, 246, 0.92); }
+  &--other { background: rgba(107, 114, 128, 0.88); }
+}
+
+.engine-badge__primary {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.engine-badge__secondary {
+  font-size: 18rpx;
+  opacity: 0.9;
+}
+
+.preview-action,
+.review-tip,
+.error-bar {
   margin: 0 24rpx 16rpx;
   padding: 16rpx 20rpx;
   border-radius: 12rpx;
@@ -303,33 +379,55 @@ export default {
   line-height: 1.6;
 }
 
-.error-bar {
-  background: #FEF3C7;
-  color: #92400E;
+.preview-action {
+  background: #fff;
+  color: #4A6CF7;
+  text-align: center;
+  font-weight: 600;
 }
 
-.figure-tip {
+.review-tip {
   background: #EEF2FF;
   color: #3730A3;
 }
 
-.figure-tip__title {
+.review-tip__title {
   display: block;
   font-size: 26rpx;
   font-weight: 600;
   margin-bottom: 8rpx;
 }
 
-.figure-tip__body {
+.review-tip__body {
   display: block;
 }
 
-.figure-section {
-  margin: 0 24rpx 24rpx;
+.review-tip__action {
+  margin-top: 14rpx;
+  color: #4A6CF7;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.error-bar {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.figure-section,
+.result-box {
   background: #fff;
   border-radius: 16rpx;
-  padding: 20rpx 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.figure-section,
+.result-section {
+  margin: 0 24rpx 24rpx;
+}
+
+.figure-section {
+  padding: 20rpx 24rpx;
 }
 
 .figure-scroll {
@@ -363,48 +461,6 @@ export default {
   border-radius: 8rpx;
 }
 
-.image-section {
-  margin: 24rpx;
-  border-radius: 20rpx;
-  overflow: hidden;
-  position: relative;
-  background: #000;
-}
-
-.result-image {
-  width: 100%;
-  height: 400rpx;
-}
-
-.confidence-badge {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-}
-
-.engine-badge {
-  position: absolute;
-  top: 16rpx;
-  left: 16rpx;
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-
-  &--tesseract { background: rgba(34, 197, 94, 0.85); color: #fff; }
-  &--pix2text { background: rgba(139, 92, 246, 0.9); color: #fff; }
-  &--doubao { background: rgba(59, 130, 246, 0.9); color: #fff; }
-  &--other { background: rgba(107, 114, 128, 0.85); color: #fff; }
-}
-
-.result-section {
-  margin: 0 24rpx 24rpx;
-}
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -425,24 +481,20 @@ export default {
 }
 
 .result-box {
-  background: #fff;
-  border-radius: 16rpx;
   padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .result-textarea {
   width: 100%;
-  min-height: 200rpx;
+  min-height: 360rpx;
   font-size: 28rpx;
   line-height: 1.8;
   color: #1F2937;
 }
 
-.preview-text,
-.review-note {
+.preview-text {
   display: block;
-  font-size: 30rpx;
+  font-size: 28rpx;
   line-height: 1.8;
   color: #374151;
   white-space: pre-wrap;
@@ -485,10 +537,7 @@ export default {
 
 .modal-mask {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 200;
   display: flex;

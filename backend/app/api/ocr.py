@@ -60,7 +60,10 @@ SUPPORTED_ENGINES = {
 @router.get("/engines", response_model=ApiResp)
 async def list_engines(current_user: User = Depends(get_current_user)):
     items = []
-    for key, meta in SUPPORTED_ENGINES.items():
+    # Filter out 'pix2text_local' as it's not for production use
+    engines_to_list = {k: v for k, v in SUPPORTED_ENGINES.items() if k != "pix2text_local"}
+
+    for key, meta in engines_to_list.items():
         info = dict(meta)
         if key == "tesseract":
             try:
