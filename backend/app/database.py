@@ -1,10 +1,14 @@
 """
 数据库引擎 & 会话管理
 """
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # 异步引擎(用于FastAPI异步请求)
 # 注意: SQLite + aiosqlite 不支持连接池参数,需按 DB 类型分别配置
@@ -48,6 +52,10 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     """初始化数据库: 创建所有表"""
+    if not settings.AUTO_CREATE_TABLES:
+        logger.info("AUTO_CREATE_TABLES=false; skip SQLAlchemy create_all. Run Alembic migrations instead.")
+        return
+
     from app.models import Base
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

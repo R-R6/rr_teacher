@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     DB_USER: str = "root"
     DB_PASSWORD: str = ""
     DB_NAME: str = "chem_teacher"
+    AUTO_CREATE_TABLES: bool = True
 
     @property
     def database_url(self) -> str:
@@ -105,6 +106,8 @@ class Settings(BaseSettings):
 
         if self.DB_TYPE.lower() == "mysql" and not self.DB_PASSWORD.strip():
             errors.append("DB_PASSWORD must be set when DB_TYPE=mysql")
+        if self.AUTO_CREATE_TABLES:
+            errors.append("AUTO_CREATE_TABLES must be false when DEBUG=false")
         if self.CORS_ORIGINS.strip() == "*":
             errors.append("CORS_ORIGINS must not be '*' when DEBUG=false")
         if self.SWAGGER_ENABLED:

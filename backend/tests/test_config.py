@@ -19,6 +19,7 @@ def _import_config_with_env(overrides: dict[str, str]) -> subprocess.CompletedPr
             "PYTHONPATH": str(BACKEND_DIR),
             "DEBUG": "false",
             "DB_TYPE": "sqlite",
+            "AUTO_CREATE_TABLES": "false",
             "CORS_ORIGINS": "https://servicewechat.com",
             "SWAGGER_ENABLED": "false",
         }
@@ -87,6 +88,19 @@ class ConfigTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_production_rejects_auto_create_tables(self):
+        result = _import_config_with_env(
+            {
+                "SECRET_KEY": "prod-secret-key-for-runtime-validation-001",
+                "JWT_SECRET_KEY": "prod-jwt-secret-key-for-runtime-validation-001",
+                "AUTO_CREATE_TABLES": "true",
+            }
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = result.stdout + result.stderr
+        self.assertIn("AUTO_CREATE_TABLES", output)
 
 
 if __name__ == "__main__":

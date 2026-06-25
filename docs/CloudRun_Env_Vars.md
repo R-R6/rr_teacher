@@ -23,6 +23,7 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v21
   "DB_USER": "<your-db-user>",
   "DB_PASSWORD": "<your-db-password>",
   "DB_NAME": "<your-db-name>",
+  "AUTO_CREATE_TABLES": "false",
   "DEBUG": "false",
   "SWAGGER_ENABLED": "false",
   "SECRET_KEY": "<your-32-plus-char-secret-key>",

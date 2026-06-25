@@ -13,7 +13,7 @@
 | Word 附图导出 | 待开发 | 题目附图尚未稳定带入 Word |
 | 生产化配置治理 | 已完成第一版 | API 地址支持环境注入，生产密钥和环境变量已增加启动校验 |
 | 成本控制与限流 | 已完成第一版 | 高成本 OCR 引擎已支持用户级/全局每日额度 |
-| 数据库迁移治理 | 待开发 | 生产 schema 仍需 Alembic 管理 |
+| 数据库迁移治理 | 已完成第一版 | 已加入 Alembic scaffold、baseline migration 和生产禁用自动建表开关 |
 
 ## 本轮完成记录
 
@@ -31,6 +31,14 @@
 - 识别前预约额度，超额时返回 429 并提示老师切换极速识别或次日再试。
 - OCR 引擎列表返回额度状态，额度耗尽的高成本引擎在小程序端不可选并展示原因。
 - 小程序上传识别失败时透传后端 `detail`，避免只显示笼统“上传失败/识别失败”。
+
+### 2026-06-25：数据库迁移治理第一版
+
+- 新增 Alembic scaffold 和当前 schema baseline migration。
+- 新增 `AUTO_CREATE_TABLES` 配置，本地开发默认开启，生产环境必须关闭。
+- 后端启动时在 `AUTO_CREATE_TABLES=false` 下跳过 SQLAlchemy `create_all()`，生产 schema 改由 migration 控制。
+- 新增数据库迁移文档，明确 upgrade/current/history、生成迁移、部署顺序和回滚原则。
+- 新增迁移治理测试，覆盖 scaffold、baseline 覆盖表名、生产禁用自动建表配置。
 
 ### 2026-06-24：架构诊断与路线校准
 
@@ -67,6 +75,9 @@
 
 ## 已完成验证
 
+- `python -m unittest tests.test_migrations tests.test_config` 通过。
+- `python -m py_compile app/config.py app/database.py` 通过。
+
 - `node --test tests/export-download.test.mjs tests/manifest.test.mjs tests/ocr-camera-fallback.test.mjs tests/ocr-result-helpers.test.mjs` 通过。
 - `python -m py_compile app/api/export.py app/services/cos_uploader.py app/api/questions.py app/services/doubao_ocr.py app/services/word_generator.py` 通过。
 - 使用 Codex 内置 Python 运行 `python -m unittest tests.test_export_api tests.test_word_generator` 通过。
@@ -83,7 +94,7 @@
 
 | 优先级 | 问题 | 状态 |
 | --- | --- | --- |
-| P0 | 生产数据库缺少 Alembic 迁移治理 | 待处理 |
+| P1 | 数据库迁移治理仍需生产演练与备份记录模板 | 跟进 |
 | P1 | Word 导出还没有稳定带出题目附图 | 待开发 |
 | P1 | API 层部分业务逻辑偏厚，需要逐步抽 service | 待优化 |
 | P1 | 题目图片挂接需要继续加强用户归属校验 | 待优化 |
@@ -91,24 +102,7 @@
 
 ## 下一步开发计划
 
-### 1. 数据库迁移治理（P0）
-
-目标：生产 schema 可追踪、可回滚。
-
-任务：
-
-- 初始化 Alembic；
-- 创建当前 schema baseline；
-- 写明 migration 命令；
-- 梳理 `create_all()` 在生产环境的使用策略。
-
-验收：
-
-- 新环境可通过 migration 初始化；
-- 字段变更必须有 migration；
-- 生产部署前有 schema 变更检查。
-
-### 2. Word 附图导出（P1）
+### 1. Word 附图导出（P1）
 
 目标：带附图题目导出 Word。
 
@@ -126,7 +120,7 @@
 - 图片缺失时有日志；
 - 不影响无图试卷导出。
 
-### 3. 服务层拆分与任务化（P1）
+### 2. 服务层拆分与任务化（P1）
 
 目标：降低 API 层复杂度，为长任务打基础。
 
