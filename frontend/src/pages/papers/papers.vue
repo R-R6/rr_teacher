@@ -67,7 +67,7 @@
 <script>
 import { papersAPI, exportAPI, buildDownloadUrl } from '../../utils/api.js'
 import { buildWordFileName, exportWordToWechat } from '../../utils/export-word.js'
-import { formatTime } from '../../utils/util.js'
+import { formatRelativeTime as formatTime } from '../../utils/time.js'
 
 export default {
   data() {

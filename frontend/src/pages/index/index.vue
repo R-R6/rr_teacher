@@ -88,7 +88,8 @@
 
 <script>
 import { questionsAPI, tagsAPI } from '../../utils/api.js'
-import { truncate, formatTime, QUESTION_TYPES } from '../../utils/util.js'
+import { truncate, QUESTION_TYPES } from '../../utils/util.js'
+import { formatRelativeTime as formatTime } from '../../utils/time.js'
 
 export default {
   data() {
