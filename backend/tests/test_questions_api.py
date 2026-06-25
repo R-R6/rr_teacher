@@ -15,7 +15,8 @@ class QuestionsApiTests(unittest.TestCase):
 
     def test_questions_api_keeps_question_tag_model_for_list_query(self):
         source = QUESTIONS_API.read_text(encoding="utf-8")
-        self.assertIn("from app.models import Question, QuestionImage, QuestionTag, QuestionTagRel, User", source)
+        self.assertIn("QuestionTag", source)
+        self.assertIn("QuestionTagRel", source)
 
 
 if __name__ == "__main__":

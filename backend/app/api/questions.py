@@ -10,7 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_teacher, get_current_user
 from app.database import get_db
-from app.models import Question, QuestionImage, QuestionTag, QuestionTagRel, User
+from app.models import (
+    MistakeBook,
+    PaperItem,
+    PracticeRecord,
+    Question,
+    QuestionImage,
+    QuestionTag,
+    QuestionTagRel,
+    User,
+)
 from app.schemas import ApiResp, QuestionCreateReq, QuestionUpdateReq
 from app.services.question_service import (
     load_question_images,
@@ -19,6 +28,27 @@ from app.services.question_service import (
 )
 
 router = APIRouter()
+
+
+async def _ensure_question_deletable(db: AsyncSession, question_id: str) -> None:
+    paper_ref_count = (
+        await db.execute(select(func.count()).select_from(PaperItem).where(PaperItem.question_id == question_id))
+    ).scalar()
+    if paper_ref_count:
+        raise HTTPException(status_code=400, detail="该题目已被试卷引用，无法删除")
+
+    mistake_ref_count = (
+        await db.execute(
+            select(func.count()).select_from(MistakeBook).where(MistakeBook.question_id == question_id)
+        )
+    ).scalar()
+    practice_ref_count = (
+        await db.execute(
+            select(func.count()).select_from(PracticeRecord).where(PracticeRecord.question_id == question_id)
+        )
+    ).scalar()
+    if mistake_ref_count or practice_ref_count:
+        raise HTTPException(status_code=400, detail="该题目已有学生作答或错题记录，无法删除")
 
 
 @router.post("", response_model=ApiResp)
@@ -223,6 +253,7 @@ async def delete_question(
     if question.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="只能删除自己的题目")
 
+    await _ensure_question_deletable(db, question_id)
     await db.delete(question)
     return ApiResp(message="题目已删除")
 
@@ -238,5 +269,6 @@ async def batch_delete_questions(
     )
     questions = result.scalars().all()
     for question in questions:
+        await _ensure_question_deletable(db, question.id)
         await db.delete(question)
     return ApiResp(message=f"已删除 {len(questions)} 道题目")
