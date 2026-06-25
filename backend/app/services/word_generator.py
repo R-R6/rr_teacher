@@ -179,6 +179,24 @@ def _add_mixed_text(paragraph, text: str, image_map: dict = None):
             run._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
 
 
+def _add_question_images(doc, image_paths: list[str] | None):
+    """Append question images as standalone Word paragraphs."""
+    for image_path in image_paths or []:
+        try:
+            img_para = doc.add_paragraph()
+            img_para.paragraph_format.left_indent = Cm(0.5)
+            img_para.paragraph_format.space_before = Pt(3)
+            img_para.paragraph_format.space_after = Pt(3)
+            img_run = img_para.add_run()
+            img_run.add_picture(image_path, width=Cm(10))
+        except Exception:
+            fallback_para = doc.add_paragraph()
+            fallback_para.paragraph_format.left_indent = Cm(0.5)
+            fallback_run = fallback_para.add_run("[image unavailable]")
+            fallback_run.font.size = Pt(9)
+            fallback_run.font.color.rgb = RGBColor(150, 150, 150)
+
+
 def generate_test_paper_word(
     paper_title: str,
     paper_subtitle: str,
@@ -312,6 +330,8 @@ def generate_test_paper_word(
                     opt_para.paragraph_format.left_indent = Cm(1)
                     _add_mixed_text(opt_para, f"{opt_label}. {opt_text}", image_map)
 
+            _add_question_images(doc, q.get("images"))
+
             # 答题空行（非选择题）
             if qt != "choice":
                 blank_para = doc.add_paragraph()
@@ -370,6 +390,8 @@ def generate_answer_sheet_word(
 
         answer = q.get("answer") or "暂无答案"
         _add_mixed_text(q_para, f"答案：{answer}", image_map)
+
+        _add_question_images(doc, q.get("images"))
 
         analysis = q.get("analysis")
         if analysis:
