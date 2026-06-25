@@ -102,6 +102,11 @@ async function handleTokenExpired() {
 function uploadImageFile(url, filePath, formData = {}) {
   return new Promise((resolve, reject) => {
     const token = getToken()
+    const rejectWithToast = (body, fallback) => {
+      const message = (body && (body.detail || body.message)) || fallback
+      uni.showToast({ title: message, icon: 'none', duration: 2500 })
+      reject({ ...(body || {}), message, _toastShown: true })
+    }
     uni.uploadFile({
       url,
       filePath,
@@ -110,17 +115,21 @@ function uploadImageFile(url, filePath, formData = {}) {
       header: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: 120000,
       success: (res) => {
-        const body = JSON.parse(res.data)
-        if (body.code === 0) {
+        let body = {}
+        try {
+          body = JSON.parse(res.data || '{}')
+        } catch (error) {
+          body = { detail: `请求错误 ${res.statusCode || ''}`.trim() }
+        }
+        if (res.statusCode === 200 && body.code === 0) {
           resolve(body.data)
         } else {
-          uni.showToast({ title: body.message || '上传失败', icon: 'none' })
-          reject(body)
+          rejectWithToast(body, '上传失败')
         }
       },
       fail: (err) => {
         uni.showToast({ title: '上传失败', icon: 'none' })
-        reject(err)
+        reject({ ...err, message: '上传失败', _toastShown: true })
       }
     })
   })

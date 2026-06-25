@@ -209,6 +209,22 @@ class OcrRecord(Base):
     question = relationship("Question", back_populates="ocr_record", uselist=False)
 
 
+class OcrUsageLog(Base):
+    """OCR paid-engine daily usage log for quota control."""
+    __tablename__ = "ocr_usage_log"
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="调用记录ID")
+    user_id = Column(CHAR(32), ForeignKey("user.id"), nullable=False, index=True, comment="用户ID")
+    engine = Column(String(50), nullable=False, comment="OCR引擎")
+    usage_day = Column(String(10), nullable=False, comment="调用日期 YYYY-MM-DD")
+    status = Column(String(20), default="reserved", comment="reserved/completed/failed")
+    error_message = Column(Text, nullable=True, comment="失败原因")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+    user = relationship("User")
+
+
 # ────────────────────────── 错题本(学生端) ──────────────────────────
 
 class MistakeBook(Base):
@@ -248,4 +264,6 @@ class PracticeRecord(Base):
 Index("ix_question_author_type", Question.author_id, Question.question_type)
 Index("ix_question_difficulty", Question.difficulty)
 Index("ix_ocr_user_created", OcrRecord.user_id, OcrRecord.created_at)
+Index("ix_ocr_usage_user_day_engine", OcrUsageLog.user_id, OcrUsageLog.usage_day, OcrUsageLog.engine)
+Index("ix_ocr_usage_global_day_engine", OcrUsageLog.usage_day, OcrUsageLog.engine)
 Index("ix_practice_student", PracticeRecord.student_id, PracticeRecord.created_at)

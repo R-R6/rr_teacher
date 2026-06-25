@@ -37,6 +37,9 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v21
   "COS_REGION": "ap-guangzhou",
   "COS_BUCKET": "<your-cos-bucket>",
   "OCR_DEFAULT_ENGINE": "tesseract",
+  "OCR_PAID_ENGINES": "doubao_vision,pix2text_online",
+  "OCR_DAILY_USER_LIMIT": "20",
+  "OCR_DAILY_GLOBAL_LIMIT": "200",
   "PIX2TEXT_API_TOKEN": "<your-pix2text-token>",
   "PIX2TEXT_API_URL": "https://api.breezedeus.com/api/pix2text",
   "DOUBAO_API_KEY": "<your-doubao-api-key>",
@@ -54,4 +57,5 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v21
 - `PIX2TEXT_*` 和 `DOUBAO_*` 同时保留，方便做并行对比测试
 - `DEBUG=false` 时后端会拒绝默认密钥、过短密钥、`SWAGGER_ENABLED=true` 和 `CORS_ORIGINS=*`
 - `SECRET_KEY` 与 `JWT_SECRET_KEY` 必须在云托管环境变量中显式配置，建议使用 32 位以上随机字符串
+- `OCR_PAID_ENGINES` 中的引擎会启用每日额度控制，`OCR_DAILY_USER_LIMIT=0` 或 `OCR_DAILY_GLOBAL_LIMIT=0` 表示对应维度不限额
 - 真实环境变量请维护在本地文件：`docs/CloudRun_Env_Vars.local.md`

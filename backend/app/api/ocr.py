@@ -17,6 +17,11 @@ from app.models import OcrRecord, QuestionImage, User
 from app.schemas import ApiResp, OcrCorrectReq
 from app.services.cos_uploader import get_cos_url, upload_to_cos
 from app.services.ocr_engine import recognize_image
+from app.services.ocr_quota import (
+    finalize_ocr_quota,
+    get_ocr_quota_status,
+    reserve_ocr_quota,
+)
 
 router = APIRouter()
 
@@ -58,7 +63,10 @@ SUPPORTED_ENGINES = {
 
 
 @router.get("/engines", response_model=ApiResp)
-async def list_engines(current_user: User = Depends(get_current_user)):
+async def list_engines(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     items = []
     # Filter out 'pix2text_local' as it's not for production use
     engines_to_list = {k: v for k, v in SUPPORTED_ENGINES.items() if k != "pix2text_local"}
@@ -85,6 +93,12 @@ async def list_engines(current_user: User = Depends(get_current_user)):
             info["available"] = bool(
                 settings.DOUBAO_API_KEY and settings.DOUBAO_BASE_URL and settings.DOUBAO_MODEL
             )
+        quota = await get_ocr_quota_status(db, current_user.id, key)
+        if quota.get("limited"):
+            info["available"] = False
+            info["disabled_reason"] = quota["message"]
+        if "limit" in quota:
+            info["quota"] = quota
         items.append({"id": key, **info})
     return ApiResp(data={"default": settings.OCR_DEFAULT_ENGINE, "engines": items})
 
@@ -111,11 +125,15 @@ async def recognize_question(
         file_obj.write(content)
 
     cropped_paths: list[str] = []
+    quota_log_id: str | None = None
+    paid_call_started = False
     try:
+        quota_log_id = await reserve_ocr_quota(db, current_user.id, chosen_engine)
         cos_key = f"ocr/{current_user.id}/{uuid.uuid4().hex}.{ext}"
         origin_url = await upload_to_cos(local_path, cos_key)
         origin_preview_url = get_cos_url(origin_url)
 
+        paid_call_started = bool(quota_log_id)
         ocr_result = await recognize_image(local_path, chosen_engine)
 
         figure_images = []
@@ -169,6 +187,7 @@ async def recognize_question(
                 )
             )
 
+        await finalize_ocr_quota(db, quota_log_id, success=True)
         return ApiResp(
             message="识别完成" if not ocr_result.get("error") else f"识别部分失败: {ocr_result.get('error')}",
             data={
@@ -183,6 +202,16 @@ async def recognize_question(
                 "error": ocr_result.get("error"),
             },
         )
+    except Exception as exc:
+        await db.rollback()
+        await finalize_ocr_quota(
+            db,
+            quota_log_id,
+            success=False,
+            error_message=str(exc),
+            counted_failure=paid_call_started,
+        )
+        raise
     finally:
         if os.path.exists(local_path):
             os.remove(local_path)

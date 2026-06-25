@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     TESSERACT_PATH: str = ""
     TESSDATA_PREFIX: str = ""
     OCR_DEFAULT_ENGINE: str = "tesseract"
+    OCR_PAID_ENGINES: str = "doubao_vision,pix2text_online"
+    OCR_DAILY_USER_LIMIT: int = 20
+    OCR_DAILY_GLOBAL_LIMIT: int = 200
     PIX2TEXT_API_TOKEN: str = ""
     PIX2TEXT_API_URL: str = ""
     DOUBAO_API_KEY: str = ""

@@ -5,10 +5,10 @@
         v-for="engine in engines"
         :key="engine.id"
         :class="['engine-chip', { active: currentEngine === engine.id, disabled: !engine.available }]"
-        @tap="engine.available && (currentEngine = engine.id)"
+        @tap="selectEngine(engine)"
       >
         <text class="engine-chip__primary">{{ engineDisplay(engine.id).primary }}</text>
-        <text class="engine-chip__secondary">{{ engineDisplay(engine.id).secondary }}</text>
+        <text class="engine-chip__secondary">{{ engine.disabled_reason || engineDisplay(engine.id).secondary }}</text>
       </view>
     </view>
 
@@ -149,6 +149,17 @@ export default {
   methods: {
     engineDisplay(id) {
       return ENGINE_MAP[id] || { primary: id, secondary: '', loading: '正在识别中...', button: '开始识别' }
+    },
+    selectEngine(engine) {
+      if (!engine.available) {
+        uni.showToast({
+          title: engine.disabled_reason || '当前引擎暂不可用，可能额度已用完',
+          icon: 'none',
+          duration: 2500,
+        })
+        return
+      }
+      this.currentEngine = engine.id
     },
     isDevtools() {
       let systemInfo = null
@@ -309,7 +320,7 @@ export default {
       const engine = this.engines.find(item => item.id === this.currentEngine)
       if (!engine || !engine.available) {
         uni.showToast({
-          title: '当前引擎未配置，请先检查服务端环境变量',
+          title: engine?.disabled_reason || '当前引擎未配置，请先检查服务端环境变量',
           icon: 'none',
           duration: 2500,
         })
@@ -326,7 +337,10 @@ export default {
         })
       } catch (error) {
         this.loading = false
-        uni.showToast({ title: '识别失败，请重试', icon: 'none' })
+        const message = error?.message || error?.detail || '识别失败，请重试'
+        if (!error?._toastShown) {
+          uni.showToast({ title: message, icon: 'none', duration: 2500 })
+        }
       }
     },
   },
