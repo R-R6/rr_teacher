@@ -5,109 +5,20 @@ Question bank APIs.
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, false, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_teacher, get_current_user
 from app.database import get_db
 from app.models import Question, QuestionImage, QuestionTag, QuestionTagRel, User
 from app.schemas import ApiResp, QuestionCreateReq, QuestionUpdateReq
-from app.services.cos_uploader import get_cos_url
+from app.services.question_service import (
+    load_question_images,
+    load_question_tags,
+    sync_question_images,
+)
 
 router = APIRouter()
-
-
-def _normalize_question_images(images: list[dict] | None) -> list[dict]:
-    normalized = []
-    for idx, image in enumerate(images or []):
-        if not isinstance(image, dict):
-            continue
-        image_url = str(image.get("image_url") or image.get("url") or "").strip()
-        if not image_url:
-            continue
-        normalized.append(
-            {
-                "id": image.get("id"),
-                "image_url": image_url,
-                "image_type": str(image.get("image_type") or image.get("type") or "figure"),
-                "source_bbox": image.get("bbox") or image.get("source_bbox"),
-                "sort_order": idx,
-            }
-        )
-    return normalized
-
-
-async def _load_question_tags(db: AsyncSession, question_id: str) -> list[dict]:
-    tag_result = await db.execute(
-        select(QuestionTag).join(QuestionTagRel).where(QuestionTagRel.question_id == question_id)
-    )
-    return [{"id": tag.id, "name": tag.name, "tag_type": tag.tag_type} for tag in tag_result.scalars().all()]
-
-
-async def _load_question_images(db: AsyncSession, question_id: str) -> list[dict]:
-    image_result = await db.execute(
-        select(QuestionImage)
-        .where(QuestionImage.question_id == question_id)
-        .order_by(QuestionImage.sort_order.asc(), QuestionImage.created_at.asc())
-    )
-    return [
-        {
-            "id": image.id,
-            "image_url": get_cos_url(image.image_url),
-            "image_type": image.image_type,
-            "source_bbox": image.source_bbox,
-            "sort_order": image.sort_order,
-        }
-        for image in image_result.scalars().all()
-    ]
-
-
-async def _sync_question_images(
-    db: AsyncSession,
-    question_id: str,
-    images: list[dict] | None,
-) -> None:
-    normalized_images = _normalize_question_images(images)
-    if images is None:
-        return
-
-    image_ids = [item["id"] for item in normalized_images if item.get("id")]
-    existing_result = await db.execute(
-        select(QuestionImage).where(
-            or_(
-                QuestionImage.question_id == question_id,
-                QuestionImage.id.in_(image_ids) if image_ids else false(),
-            )
-        )
-    )
-    existing_images = {image.id: image for image in existing_result.scalars().all()}
-    current_question_image_ids = {
-        image.id for image in existing_images.values() if image.question_id == question_id
-    }
-    kept_ids: set[str] = set()
-
-    for item in normalized_images:
-        image_id = item.get("id")
-        if image_id and image_id in existing_images:
-            image = existing_images[image_id]
-            image.question_id = question_id
-            image.image_url = item["image_url"]
-            image.image_type = item["image_type"]
-            image.source_bbox = item.get("source_bbox")
-            image.sort_order = item["sort_order"]
-            kept_ids.add(image_id)
-        else:
-            new_image = QuestionImage(
-                question_id=question_id,
-                image_url=item["image_url"],
-                image_type=item["image_type"],
-                source_bbox=item.get("source_bbox"),
-                sort_order=item["sort_order"],
-            )
-            db.add(new_image)
-
-    for image_id in current_question_image_ids - kept_ids:
-        await db.delete(existing_images[image_id])
 
 
 @router.post("", response_model=ApiResp)
@@ -147,7 +58,7 @@ async def create_question(
                 .values(question_id=question.id)
             )
 
-    await _sync_question_images(db, question.id, req.images)
+    await sync_question_images(db, question.id, req.images)
     return ApiResp(message="题目创建成功", data={"question_id": question.id})
 
 
@@ -178,8 +89,8 @@ async def get_question(
         "options": question.options,
         "is_public": question.is_public,
         "is_verified": question.is_verified,
-        "tags": await _load_question_tags(db, question.id),
-        "images": await _load_question_images(db, question.id),
+        "tags": await load_question_tags(db, question.id),
+        "images": await load_question_images(db, question.id),
         "created_at": question.created_at.isoformat() if question.created_at else None,
         "updated_at": question.updated_at.isoformat() if question.updated_at else None,
     }
@@ -295,7 +206,7 @@ async def update_question(
         for tag_id in req.tag_ids:
             db.add(QuestionTagRel(question_id=question_id, tag_id=tag_id))
 
-    await _sync_question_images(db, question_id, req.images)
+    await sync_question_images(db, question_id, req.images)
     return ApiResp(message="题目更新成功")
 
 

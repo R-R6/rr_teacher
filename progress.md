@@ -52,6 +52,12 @@
 - `api/export.py` 不再直接依赖 `QuestionImage`、`tempfile` 或图片读取细节，路由层继续负责权限、查询、上传和响应。
 - 补充导出接口静态测试，确保附图读取逻辑从 API 层下沉到 service。
 
+### 2026-06-25：服务层拆分第二步
+- 新增 `app/services/question_service.py`，承接题目图片规范化、题目图片同步、题目标签读取和题目图片读取。
+- `api/questions.py` 不再内嵌图片处理 helper，题目详情和编辑链路改为通过 service 调用。
+- 修正题目图片规范化后的 `sort_order` 连续编号问题，避免过滤无效项后出现顺序空洞。
+- 补充 `QuestionService` 和 `questions API` 的轻量测试，约束 API 层继续保持委托关系。
+
 ### 2026-06-24：架构诊断与路线校准
 
 - 新增并校准 `docs/architecture-diagnosis.md`。
