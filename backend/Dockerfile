@@ -24,8 +24,12 @@ COPY . .
 # Runtime directories
 RUN mkdir -p uploads exports
 
+# 入口脚本：启动前对 MySQL 执行 Alembic 迁移，避免表缺失导致 lifespan 崩溃
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8080
 
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata/
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -70,6 +70,13 @@
 - 补充时间解析回归测试至 10 例，覆盖 T 分隔、空格分隔、带 `Z`、带 `+08:00`、无毫秒、毫秒不足三位等场景。
 - `frontend/package.json` 增加 `"type": "module"`，消除 `MODULE_TYPELESS_PACKAGE_JSON` 警告；已确认云函数（独立 package.json）与 build 脚本的 `node -e` 内联代码不受影响。
 
+### 2026-06-25：修复 v28 部署 8080 探针 connection refused
+- 根因：`82f2013 数据库迁移治理` 引入 `AUTO_CREATE_TABLES` 与 `validate_runtime` 校验，生产环境若沿用 v21 时期环境变量漏配 `AUTO_CREATE_TABLES=false`，模块导入时即抛 `RuntimeError`，uvicorn 在绑定 8080 前退出；即便补齐该变量，`init_db()` 跳过 `create_all` 且 Dockerfile 无迁移步骤，lifespan 的 `SELECT COUNT(*) FROM question` 仍会因表缺失崩溃。
+- 修复 1：Dockerfile 改用 `entrypoint.sh`，`DB_TYPE=mysql` 时在 uvicorn 启动前执行 `alembic upgrade head`（迁移失败不阻塞启动，便于通过日志排查）。
+- 修复 2：`main.py` lifespan 的 question 表探针查询加 try/except，降级为 `logger.warning` 并跳过种子导入，避免启动期 DB 不可达让整个应用崩。
+- 新增 `backend/.gitattributes` 强制 `*.sh`/`Dockerfile`/`*.py` 使用 LF，避免 Linux 容器内 `/bin/sh^M: not found`。
+- 生产部署仍需在 CloudRun 控制台补齐 `AUTO_CREATE_TABLES=false` 及其余 `validate_runtime` 必填项（SECRET_KEY/JWT_SECRET_KEY/SWAGGER_ENABLED/CORS_ORIGINS/DB_PASSWORD）。
+
 ### 2026-06-24：架构诊断与路线校准
 
 - 新增并校准 `docs/architecture-diagnosis.md`。
@@ -107,6 +114,7 @@
 
 - `python -m unittest tests.test_migrations tests.test_config` 通过。
 - `python -m py_compile app/config.py app/database.py` 通过。
+- v28 修复：本地仿真生产配置（`DB_TYPE=sqlite DEBUG=false AUTO_CREATE_TABLES=false`）启动 uvicorn，确认 `validate_runtime` 不再因 `AUTO_CREATE_TABLES` 崩、lifespan 探针查询失败时降级为 warning 且 `/health` 返回 200；完整 entrypoint 流程（先 `alembic upgrade head` 再启动）无 warning 且 `/health` 200。
 
 - `node --test tests/export-download.test.mjs tests/manifest.test.mjs tests/ocr-camera-fallback.test.mjs tests/ocr-result-helpers.test.mjs` 通过。
 - `python -m py_compile app/api/export.py app/services/cos_uploader.py app/api/questions.py app/services/doubao_ocr.py app/services/word_generator.py` 通过。

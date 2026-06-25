@@ -48,13 +48,21 @@ async def lifespan(app: FastAPI):
     from sqlalchemy import text
     from app.database import AsyncSessionLocal
     async with AsyncSessionLocal() as session:
-        result = await session.execute(text("SELECT COUNT(*) FROM question"))
-        count = result.scalar()
-        if count == 0:
-            logger.info("数据库为空，自动导入种子数据...")
-            await _auto_seed(session)
-        else:
-            logger.info(f"数据库已有 {count} 道题目")
+        try:
+            result = await session.execute(text("SELECT COUNT(*) FROM question"))
+            count = result.scalar()
+        except Exception as e:
+            # 启动期表缺失或 DB 不可达不应让整个应用崩掉（探针会因 8080 无监听而失败）。
+            # 降级为警告：容器仍能对外提供 /health，便于通过日志继续排查迁移或连通性问题。
+            logger.warning(f"启动期查询 question 表失败，跳过自动种子导入: {str(e)[:200]}")
+            count = None
+
+        if count is not None:
+            if count == 0:
+                logger.info("数据库为空，自动导入种子数据...")
+                await _auto_seed(session)
+            else:
+                logger.info(f"数据库已有 {count} 道题目")
 
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 启动完成")
     logger.info(f"调试模式: {settings.DEBUG} | Swagger: {settings.SWAGGER_ENABLED}")
