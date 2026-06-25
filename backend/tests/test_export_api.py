@@ -4,6 +4,7 @@ from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 EXPORT_API = BACKEND_DIR / "app" / "api" / "export.py"
+EXPORT_SERVICE = BACKEND_DIR / "app" / "services" / "export_service.py"
 
 
 class ExportApiTests(unittest.TestCase):
@@ -15,10 +16,19 @@ class ExportApiTests(unittest.TestCase):
         self.assertIn("read_storage_file", source)
 
     def test_export_reads_question_images_from_storage_not_public_url(self):
+        service_source = EXPORT_SERVICE.read_text(encoding="utf-8")
+        api_source = EXPORT_API.read_text(encoding="utf-8")
+
+        self.assertIn("read_storage_file(image.image_url)", service_source)
+        self.assertIn("\"images\": image_paths_by_question.get(question.id, [])", service_source)
+        self.assertNotIn("httpx.AsyncClient", service_source)
+        self.assertNotIn("httpx.AsyncClient", api_source)
+
+    def test_export_api_delegates_image_payload_work_to_service(self):
         source = EXPORT_API.read_text(encoding="utf-8")
-        self.assertIn("read_storage_file(image.image_url)", source)
-        self.assertIn("\"images\": image_paths_by_question.get(question.id, [])", source)
-        self.assertNotIn("httpx.AsyncClient", source)
+        self.assertIn("from app.services.export_service import", source)
+        self.assertNotIn("QuestionImage", source)
+        self.assertNotIn("tempfile", source)
 
 
 if __name__ == "__main__":

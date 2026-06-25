@@ -14,6 +14,7 @@
 | 生产化配置治理 | 已完成第一版 | API 地址支持环境注入，生产密钥和环境变量已增加启动校验 |
 | 成本控制与限流 | 已完成第一版 | 高成本 OCR 引擎已支持用户级/全局每日额度 |
 | 数据库迁移治理 | 已完成第一版 | 已加入 Alembic scaffold、baseline migration 和生产禁用自动建表开关 |
+| 服务层拆分与任务化 | 进行中 | 已先抽出 Word 导出附图读取和 payload 构建逻辑 |
 
 ## 本轮完成记录
 
@@ -45,6 +46,11 @@
 - 导出接口改为通过 `read_storage_file(image.image_url)` 从后端存储读取题目附图，不再依赖公网 URL 或临时签名 URL。
 - 试卷导出和选定题目直接导出都会按 `QuestionImage.sort_order` 带入附图，并在导出结束后清理临时图片文件。
 - 补充 Word 生成器和导出接口测试，覆盖 docx media 打包和禁止使用 `httpx.AsyncClient` 读取附图。
+
+### 2026-06-25：服务层拆分第一步
+- 新增 `app/services/export_service.py`，承接 Word 导出中的题目附图读取、临时文件清理和 question payload 构建。
+- `api/export.py` 不再直接依赖 `QuestionImage`、`tempfile` 或图片读取细节，路由层继续负责权限、查询、上传和响应。
+- 补充导出接口静态测试，确保附图读取逻辑从 API 层下沉到 service。
 
 ### 2026-06-24：架构诊断与路线校准
 

@@ -5,10 +5,8 @@ The mini program cannot reliably access private COS files directly, so exports
 are generated on the backend, stored through the configured storage adapter, and
 downloaded again through backend proxy endpoints when needed.
 """
-import logging
 import os
 import re
-import tempfile
 import uuid
 from urllib.parse import quote
 
@@ -19,14 +17,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_teacher
 from app.database import get_db
-from app.models import Paper, PaperItem, Question, QuestionImage, User
+from app.models import Paper, PaperItem, Question, User
 from app.schemas import ApiResp
 from app.services.cos_uploader import get_cos_url, read_storage_file, upload_to_cos
+from app.services.export_service import (
+    cleanup_temp_files,
+    load_question_image_paths,
+    paper_question_payload,
+    selected_question_payload,
+)
 from app.services.word_generator import generate_answer_sheet_word, generate_test_paper_word
 
 router = APIRouter()
 WORD_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-logger = logging.getLogger(__name__)
 
 
 def _build_export_download_url(stored_url: str | None) -> str | None:
@@ -44,104 +47,6 @@ def _build_word_filename(title: str | None, suffix: str) -> str:
     if not safe_title:
         safe_title = "\u8bd5\u5377"
     return f"{safe_title[:50]}_{suffix}.docx"
-
-
-def _image_temp_suffix(filename: str) -> str:
-    suffix = os.path.splitext(filename or "")[1].lower()
-    if suffix in {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}:
-        return suffix
-    return ".jpg"
-
-
-def _write_temp_image_file(image_bytes: bytes, filename: str) -> str:
-    tmp = tempfile.NamedTemporaryFile(suffix=_image_temp_suffix(filename), delete=False)
-    try:
-        tmp.write(image_bytes)
-        return tmp.name
-    finally:
-        tmp.close()
-
-
-async def _load_question_image_paths(
-    db: AsyncSession,
-    question_ids: list[str],
-) -> tuple[dict[str, list[str]], list[str]]:
-    if not question_ids:
-        return {}, []
-
-    img_result = await db.execute(
-        select(QuestionImage)
-        .where(QuestionImage.question_id.in_(question_ids))
-        .order_by(
-            QuestionImage.question_id,
-            QuestionImage.sort_order.asc(),
-            QuestionImage.created_at.asc(),
-        )
-    )
-
-    image_paths_by_question: dict[str, list[str]] = {}
-    temp_paths: list[str] = []
-    for image in img_result.scalars().all():
-        if not image.image_url:
-            continue
-        try:
-            image_bytes, filename = read_storage_file(image.image_url)
-            temp_path = _write_temp_image_file(image_bytes, filename)
-        except FileNotFoundError as exc:
-            logger.warning("Question image missing during Word export: %s", exc)
-            continue
-        except Exception as exc:
-            logger.warning("Question image unreadable during Word export: %s", exc)
-            continue
-
-        temp_paths.append(temp_path)
-        image_paths_by_question.setdefault(image.question_id, []).append(temp_path)
-
-    return image_paths_by_question, temp_paths
-
-
-def _cleanup_temp_files(paths: list[str]) -> None:
-    for path in paths:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
-
-
-def _paper_question_payload(
-    item: PaperItem,
-    question: Question,
-    image_paths_by_question: dict[str, list[str]],
-) -> dict:
-    return {
-        "id": question.id,
-        "content": question.content,
-        "answer": question.answer,
-        "analysis": question.analysis,
-        "question_type": question.question_type,
-        "options": question.options,
-        "score": item.score,
-        "sort_order": item.sort_order,
-        "images": image_paths_by_question.get(question.id, []),
-    }
-
-
-def _selected_question_payload(
-    question: Question,
-    sort_order: int,
-    image_paths_by_question: dict[str, list[str]],
-) -> dict:
-    return {
-        "id": question.id,
-        "content": question.content,
-        "answer": question.answer,
-        "analysis": question.analysis,
-        "question_type": question.question_type,
-        "options": question.options,
-        "score": 5,
-        "sort_order": sort_order,
-        "images": image_paths_by_question.get(question.id, []),
-    }
 
 
 @router.post("/paper/{paper_id}/word", response_model=ApiResp)
@@ -170,9 +75,9 @@ async def export_paper_to_word(
         raise HTTPException(status_code=400, detail="\u8bd5\u5377\u4e3a\u7a7a")
 
     all_question_ids = [q.id for _, q in rows]
-    image_paths_by_question, temp_image_paths = await _load_question_image_paths(db, all_question_ids)
+    image_paths_by_question, temp_image_paths = await load_question_image_paths(db, all_question_ids)
     questions_data = [
-        _paper_question_payload(item, question, image_paths_by_question)
+        paper_question_payload(item, question, image_paths_by_question)
         for item, question in rows
     ]
 
@@ -202,7 +107,7 @@ async def export_paper_to_word(
             finally:
                 os.remove(answer_path)
     finally:
-        _cleanup_temp_files(temp_image_paths)
+        cleanup_temp_files(temp_image_paths)
 
     paper.word_url = test_url
     paper.answer_word_url = answer_url
@@ -271,9 +176,9 @@ async def export_questions_to_word(
     if not questions:
         raise HTTPException(status_code=400, detail="\u672a\u627e\u5230\u6307\u5b9a\u9898\u76ee")
 
-    image_paths_by_question, temp_image_paths = await _load_question_image_paths(db, [q.id for q in questions])
+    image_paths_by_question, temp_image_paths = await load_question_image_paths(db, [q.id for q in questions])
     questions_data = [
-        _selected_question_payload(question, idx + 1, image_paths_by_question)
+        selected_question_payload(question, idx + 1, image_paths_by_question)
         for idx, question in enumerate(questions)
     ]
 
@@ -291,6 +196,6 @@ async def export_questions_to_word(
         finally:
             os.remove(file_path)
     finally:
-        _cleanup_temp_files(temp_image_paths)
+        cleanup_temp_files(temp_image_paths)
 
     return ApiResp(message="\u5bfc\u51fa\u6210\u529f", data={"word_url": _build_export_download_url(download_url)})
