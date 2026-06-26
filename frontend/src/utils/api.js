@@ -139,7 +139,7 @@ export const authAPI = {
   login: (data) => request({ url: '/auth/login', method: 'POST', data }),
   register: (data) => request({ url: '/auth/register', method: 'POST', data }),
   wechatLogin: (data) => request({ url: '/auth/wechat-login', method: 'POST', data }),
-  getMe: () => request({ url: '/auth/me' }),
+  getMe: () => request({ url: '/auth/me', timeout: 10000 }),
   updateMe: (data) => request({ url: '/auth/me', method: 'PUT', data }),
   bindPhone: (phone) => request({ url: `/auth/bind-phone?phone=${phone}`, method: 'POST' }),
 }

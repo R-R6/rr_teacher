@@ -77,6 +77,13 @@
 - 新增 `backend/.gitattributes` 强制 `*.sh`/`Dockerfile`/`*.py` 使用 LF，避免 Linux 容器内 `/bin/sh^M: not found`。
 - 生产部署仍需在 CloudRun 控制台补齐 `AUTO_CREATE_TABLES=false` 及其余 `validate_runtime` 必填项（SECRET_KEY/JWT_SECRET_KEY/SWAGGER_ENABLED/CORS_ORIGINS/DB_PASSWORD）。
 
+### 2026-06-26：修复时间显示偏移 8 小时 + onLaunch 超时
+- 根因：CloudRun 容器默认时区 UTC，后端 `models.py` 的 `default=datetime.now` 记录的是 UTC 时间，前端按本地解析后显示比北京时间少 8 小时（"8小时前"）。
+- 修复：Dockerfile 安装 tzdata 并设 `TZ=Asia/Shanghai`（ENV + `/etc/localtime` 软链），使 `datetime.now()` 返回北京时间。
+- 修复：前端 `getMe` 超时由默认 30 秒改为 10 秒，避免 onLaunch 被后端冷启动阻塞 30 秒导致后续 `navigateTo/reLaunch:fail timeout`。
+- `docs/CloudRun_Env_Vars.md` 模板与检查清单新增 `TZ=Asia/Shanghai`。
+- 验证：`TZ=Asia/Shanghai` 下 `datetime.now()` 与 UTC 差 8.0 小时；本地仿真生产配置启动 `/health` 200；前端 time.js 10/10 测试无回归。
+
 ### 2026-06-24：架构诊断与路线校准
 
 - 新增并校准 `docs/architecture-diagnosis.md`。
