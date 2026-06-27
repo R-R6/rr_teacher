@@ -104,12 +104,12 @@
 
 ### 🧪 测试与质量
 
-| 命令 | 说明 | 使用示例 |
-|------|------|---------|
-| `/test-driven-development` | 🧪 测试驱动开发 | `/test-driven-development 实现导出功能` |
-| `/webapp-testing` | 🌐 Playwright Web 应用测试 | `/webapp-testing 测试登录流程` |
-| `/code-reviewer` | 👀 代码审查（正确性/安全/性能） | `/code-reviewer 审查最近的代码变更` |
-| `/audit-website` | 🔍 网站综合审计（性能/SEO/安全） | `/audit-website 检查官网质量` |
+| 命令                         | 说明                     | 使用示例                              |
+| -------------------------- | ---------------------- | --------------------------------- |
+| `/test-driven-development` | 🧪 测试驱动开发              | `/test-driven-development 实现导出功能` |
+| `/webapp-testing`          | 🌐 Playwright Web 应用测试 | `/webapp-testing 测试登录流程`          |
+| `/code-reviewer`           | 👀 代码审查（正确性/安全/性能）     | `/code-reviewer 审查最近的代码变更`        |
+| `/audit-website`           | 🔍 网站综合审计（性能/SEO/安全）   | `/audit-website 检查官网质量`           |
 
 ### 📋 规划与文档
 

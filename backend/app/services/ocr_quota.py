@@ -2,14 +2,18 @@
 Daily quota controls for paid OCR engines.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import OcrUsageLog
+
+logger = logging.getLogger(__name__)
 
 COUNTED_STATUSES = {"reserved", "completed", "failed"}
 
@@ -46,14 +50,19 @@ async def _count_usage(
     day: str,
     user_id: str | None = None,
 ) -> int:
-    stmt = select(func.count()).select_from(OcrUsageLog).where(
-        OcrUsageLog.engine == engine,
-        OcrUsageLog.usage_day == day,
-        OcrUsageLog.status.in_(COUNTED_STATUSES),
-    )
-    if user_id:
-        stmt = stmt.where(OcrUsageLog.user_id == user_id)
-    return int((await db.execute(stmt)).scalar() or 0)
+    try:
+        stmt = select(func.count()).select_from(OcrUsageLog).where(
+            OcrUsageLog.engine == engine,
+            OcrUsageLog.usage_day == day,
+            OcrUsageLog.status.in_(COUNTED_STATUSES),
+        )
+        if user_id:
+            stmt = stmt.where(OcrUsageLog.user_id == user_id)
+        return int((await db.execute(stmt)).scalar() or 0)
+    except (ProgrammingError, OperationalError) as e:
+        # ocr_usage_log 表可能尚未迁移，降级为 0 次使用
+        logger.warning("ocr_usage_log 查询失败，降级为 0: %s", e)
+        return 0
 
 
 async def get_ocr_quota_status(db: AsyncSession, user_id: str, engine: str) -> dict:

@@ -82,13 +82,6 @@ async def list_engines(
                 info["available"] = False
         elif key == "pix2text_online":
             info["available"] = bool(settings.PIX2TEXT_API_TOKEN)
-        elif key == "pix2text_local":
-            try:
-                import pix2text  # noqa: F401
-
-                info["available"] = True
-            except Exception:
-                info["available"] = False
         elif key == "doubao_vision":
             info["available"] = bool(
                 settings.DOUBAO_API_KEY and settings.DOUBAO_BASE_URL and settings.DOUBAO_MODEL
