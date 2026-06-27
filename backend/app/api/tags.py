@@ -96,9 +96,12 @@ async def delete_tag(
 
 
 @router.post("/seed", response_model=ApiResp)
-async def seed_default_tags(db: AsyncSession = Depends(get_db)):
+async def seed_default_tags(
+    current_user: User = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    初始化高中化学预设标签（首次部署后调用一次）
+    初始化高中化学预设标签（幂等：已存在的标签不会重复创建）
     """
     default_tags = [
         # 教材册别
@@ -119,7 +122,7 @@ async def seed_default_tags(db: AsyncSession = Depends(get_db)):
         {"name": "中等", "tag_type": "difficulty", "sort_order": 3},
         {"name": "较难", "tag_type": "difficulty", "sort_order": 4},
         {"name": "极难", "tag_type": "difficulty", "sort_order": 5},
-        # 知识点（二级树形）
+        # 知识点
         {"name": "物质的分类与转化", "tag_type": "knowledge", "sort_order": 1},
         {"name": "离子反应", "tag_type": "knowledge", "sort_order": 2},
         {"name": "氧化还原反应", "tag_type": "knowledge", "sort_order": 3},
@@ -137,10 +140,35 @@ async def seed_default_tags(db: AsyncSession = Depends(get_db)):
         {"name": "化学实验基础", "tag_type": "knowledge", "sort_order": 15},
     ]
 
+    # 一次查询所有已存在的标签名（替代 30 次逐条 SELECT）
+    existing_result = await db.execute(select(QuestionTag.name))
+    existing_names = {row[0] for row in existing_result.all()}
+
+    created = 0
+    skipped = 0
+    categories = {}
+
     for tag_data in default_tags:
-        result = await db.execute(select(QuestionTag).where(QuestionTag.name == tag_data["name"]))
-        if not result.scalar_one_or_none():
+        tag_type = tag_data["tag_type"]
+        if tag_type not in categories:
+            categories[tag_type] = {"created": 0, "skipped": 0}
+
+        if tag_data["name"] in existing_names:
+            skipped += 1
+            categories[tag_type]["skipped"] += 1
+        else:
             tag = QuestionTag(**tag_data)
             db.add(tag)
+            existing_names.add(tag_data["name"])  # 防止列表内重名
+            created += 1
+            categories[tag_type]["created"] += 1
 
-    return ApiResp(message=f"已初始化 {len(default_tags)} 个预设标签")
+    return ApiResp(
+        message=f"已初始化 {created} 个新标签" if created else "所有预设标签已存在",
+        data={
+            "created": created,
+            "skipped": skipped,
+            "total": len(default_tags),
+            "categories": categories,
+        },
+    )
