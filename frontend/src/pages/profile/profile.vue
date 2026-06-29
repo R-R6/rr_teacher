@@ -28,46 +28,48 @@
       <view class="stats-card">
         <view class="stat-item">
           <text class="stat-num">{{ stats.questions }}</text>
-          <text class="stat-label">题目</text>
+          <text class="stat-label">累计题目</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-num">{{ stats.papers }}</text>
-          <text class="stat-label">试卷</text>
+          <text class="stat-label">累计试卷</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-num">{{ stats.ocr }}</text>
-          <text class="stat-label">OCR识别</text>
+          <text class="stat-label">OCR 记录</text>
         </view>
       </view>
 
-      <!-- 功能列表 -->
-      <view class="menu-card">
-        <view class="menu-item" @tap="goTo('/pages/tags/tags')">
-          <text class="menu-icon">🏷️</text>
-          <text class="menu-text">标签管理</text>
-          <text class="menu-arrow">›</text>
+      <!-- OCR 额度卡片 -->
+      <view v-if="quota.limit > 0" class="quota-card">
+        <view class="quota-header">
+          <text class="quota-title">今日 OCR 额度</text>
+          <text class="quota-date">{{ today }}</text>
         </view>
-        <view class="menu-item" @tap="initTags">
-          <text class="menu-icon">🌱</text>
-          <text class="menu-text">初始化预设标签</text>
-          <text class="menu-arrow">›</text>
+        <view class="quota-progress-wrap">
+          <view class="quota-bar-bg">
+            <view class="quota-bar-fill" :style="{ width: quotaPercent + '%', background: quotaColor }"></view>
+          </view>
+          <text class="quota-count" :style="{ color: quotaColor }">{{ quota.used }}<text class="quota-total"> / {{ quota.limit }}</text></text>
         </view>
+        <text class="quota-hint">{{ quotaHint }}</text>
       </view>
 
-      <view class="menu-card">
-        <view class="menu-item" @tap="viewAbout">
-          <text class="menu-icon">ℹ️</text>
-          <text class="menu-text">关于系统</text>
-          <text class="menu-arrow">›</text>
-        </view>
+      <!-- 关于小睿化学 -->
+      <view class="intro-card">
+        <text class="intro-title">🧪 关于小睿化学</text>
+        <text class="intro-body">高中化学教学辅助小程序，拍照识别题目、智能组卷导出，老师备课学生的刷题好帮手。</text>
+        <text class="intro-version">v1.0.0</text>
       </view>
 
       <!-- 退出登录 -->
       <view class="logout-btn" @tap="handleLogout">
         <text>退出登录</text>
       </view>
+
+      <view style="height: 40rpx;"></view>
     </scroll-view>
 
     <!-- 编辑个人资料弹窗 -->
@@ -100,7 +102,7 @@
 </template>
 
 <script>
-import { tagsAPI, questionsAPI, papersAPI, ocrAPI, authAPI } from '../../utils/api.js'
+import { questionsAPI, papersAPI, ocrAPI, authAPI } from '../../utils/api.js'
 
 export default {
   data() {
@@ -109,10 +111,33 @@ export default {
       navHeight: 0,
       user: null,
       stats: { questions: 0, papers: 0, ocr: 0 },
+      quota: { used: 0, limit: 0, remaining: 0 },
       showEditModal: false,
       editNickname: '',
       editAvatarUrl: '',
     }
+  },
+  computed: {
+    today() {
+      const d = new Date()
+      return `${d.getMonth() + 1}月${d.getDate()}日`
+    },
+    quotaPercent() {
+      if (!this.quota.limit) return 0
+      return Math.min(Math.round((this.quota.used / this.quota.limit) * 100), 100)
+    },
+    quotaColor() {
+      if (this.quotaPercent >= 100) return '#EF4444'
+      if (this.quotaPercent >= 80) return '#F59E0B'
+      return '#10B981'
+    },
+    quotaHint() {
+      const r = this.quota.remaining
+      if (r === null || r === undefined) return '额度不限'
+      if (r <= 0) return '今日额度已用完，明天再来吧'
+      if (r <= 3) return `仅剩 ${r} 次，省着点用哦`
+      return `剩余 ${r} 次，够用的`
+    },
   },
   onLoad() {
     try {
@@ -126,13 +151,12 @@ export default {
   onShow() {
     this.loadUserInfo()
     this.loadStats()
+    this.loadQuota()
   },
   methods: {
     loadUserInfo() {
-      // 先从本地缓存加载
       const info = uni.getStorageSync('user_info')
       this.user = info ? (typeof info === 'string' ? JSON.parse(info) : info) : null
-      // 再从后端刷新（获取最新头像昵称）
       authAPI.getMe().then(res => {
         this.user = res
         uni.setStorageSync('user_info', JSON.stringify(res))
@@ -150,29 +174,20 @@ export default {
         this.stats.ocr = o.total || 0
       } catch (e) {}
     },
-    goTo(url) {
-      uni.navigateTo({ url })
-    },
-    viewAbout() {
-      uni.showModal({
-        title: '高中化学教学辅助系统',
-        content: '版本 1.0.0\n\n功能：拍照OCR识别化学题目、管理题库、智能组卷、导出Word试卷\n\n技术栈：uni-app + FastAPI + Pix2Text',
-        showCancel: false,
-      })
-    },
-    async initTags() {
-      uni.showModal({
-        title: '初始化标签',
-        content: '将创建预设的高中化学标签，已有标签不会重复。',
-        success: async (res) => {
-          if (res.confirm) {
-            try {
-              await tagsAPI.seed()
-              uni.showToast({ title: '初始化成功', icon: 'success' })
-            } catch (e) {}
+    async loadQuota() {
+      try {
+        const res = await ocrAPI.listEngines()
+        const engines = res?.engines || []
+        // 找到第一个有 quota 的付费引擎（doubao_vision 或 pix2text_online）
+        const paid = engines.find((e) => e.quota && e.quota.limit > 0)
+        if (paid) {
+          this.quota = {
+            used: paid.quota.used || 0,
+            limit: paid.quota.limit || 0,
+            remaining: paid.quota.remaining,
           }
-        },
-      })
+        }
+      } catch (e) {}
     },
     handleLogout() {
       uni.showModal({
@@ -268,16 +283,8 @@ export default {
   overflow: hidden;
   flex-shrink: 0;
 }
-.avatar-img {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
-}
-.avatar-text {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #fff;
-}
+.avatar-img { width: 100rpx; height: 100rpx; border-radius: 50%; }
+.avatar-text { font-size: 40rpx; font-weight: 700; color: #fff; }
 .user-name { display: block; font-size: 32rpx; font-weight: 700; margin-bottom: 4rpx; }
 .user-role {
   display: inline-block;
@@ -288,11 +295,9 @@ export default {
   margin-bottom: 4rpx;
 }
 .user-school { display: block; font-size: 22rpx; opacity: 0.8; }
-.edit-arrow {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.7);
-  flex-shrink: 0;
-}
+.edit-arrow { font-size: 24rpx; color: rgba(255,255,255,0.7); flex-shrink: 0; }
+
+/* 统计 */
 .stats-card {
   display: flex;
   background: #fff;
@@ -305,26 +310,81 @@ export default {
 .stat-num { display: block; font-size: 36rpx; font-weight: 700; color: #8B5CF6; }
 .stat-label { display: block; font-size: 22rpx; color: #9CA3AF; margin-top: 4rpx; }
 .stat-divider { width: 1rpx; background: #F3F4F6; }
-.menu-card {
+
+/* OCR 额度卡片 */
+.quota-card {
+  margin: 0 24rpx 24rpx;
   background: #fff;
   border-radius: 20rpx;
-  margin: 0 24rpx 20rpx;
-  overflow: hidden;
+  padding: 28rpx 28rpx 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
 }
-.menu-item {
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.quota-title { font-size: 28rpx; font-weight: 600; color: #1F2937; }
+.quota-date { font-size: 24rpx; color: #9CA3AF; }
+.quota-progress-wrap {
   display: flex;
   align-items: center;
-  padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid #F3F4F6;
-  &:last-child { border-bottom: none; }
-  &:active { background: #FAFBFC; }
+  gap: 16rpx;
 }
-.menu-icon { font-size: 32rpx; margin-right: 16rpx; }
-.menu-text { flex: 1; font-size: 28rpx; color: #374151; }
-.menu-arrow { font-size: 32rpx; color: #D1D5DB; }
+.quota-bar-bg {
+  flex: 1;
+  height: 16rpx;
+  background: #F3F4F6;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+.quota-bar-fill {
+  height: 100%;
+  border-radius: 8rpx;
+  transition: width 300ms ease-out;
+}
+.quota-count { font-size: 30rpx; font-weight: 700; flex-shrink: 0; }
+.quota-total { font-size: 24rpx; font-weight: 400; color: #9CA3AF; }
+.quota-hint {
+  display: block;
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 12rpx;
+}
+
+/* 关于小睿化学 */
+.intro-card {
+  margin: 0 24rpx 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+.intro-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1F2937;
+  margin-bottom: 12rpx;
+}
+.intro-body {
+  display: block;
+  font-size: 26rpx;
+  color: #4B5563;
+  line-height: 1.7;
+}
+.intro-version {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #9CA3AF;
+  margin-top: 16rpx;
+}
+
+/* 退出登录 */
 .logout-btn {
-  margin: 40rpx 24rpx;
+  margin: 16rpx 24rpx 0;
   padding: 28rpx 0;
   text-align: center;
   background: #fff;
