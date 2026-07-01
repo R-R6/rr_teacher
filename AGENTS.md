@@ -129,6 +129,84 @@ The system uses a dual-engine approach:
 | **uniapp-wechat** | `uniapp-wechat-mcp` | uni-app 小程序开发：构建、预览、截图、自动化测试 | ✅ 已配置 |
 | **weixin-devtools** | `weixin-devtools-mcp` | 微信开发者工具自动化：31个工具，含断言/网络监控/调试 | ✅ 已配置 |
 
+## Figma 工作流
+
+项目已在本机安装以下 OpenAI 官方技能：
+
+- `figma-use`
+- `figma-generate-design`
+- `figma-create-design-system-rules`
+- `figma-implement-design`
+
+用途分工：
+
+- `figma-use`：Figma 基础操作能力
+- `figma-generate-design`：生成或更新产品页面设计
+- `figma-create-design-system-rules`：为本项目生成设计系统规则
+- `figma-implement-design`：将 Figma 设计落成代码
+
+当前项目的 `.mcp.json` 尚未配置 Figma MCP server，因此这套工作流已具备技能层能力，但暂时还不能直接从 Figma 拉取节点上下文、截图和资产。
+
+详细说明见：
+
+- [docs/Figma_Workflow.md](docs/Figma_Workflow.md)
+
+### Figma 设计系统规则（项目草案）
+
+以下规则用于后续 `figma-create-design-system-rules` / `figma-implement-design` 落地，先作为本项目的默认约定：
+
+#### Figma MCP Integration Rules
+
+1. 必须先获取 Figma 设计上下文，再开始改代码：
+   - `get_design_context`
+   - `get_screenshot`
+2. 如果返回过大或节点复杂，先 `get_metadata` 再分节点拉取上下文。
+3. 先复用项目现有页面模式和样式变量，不允许直接把 Figma 输出的 React/Tailwind 片段原样塞进 uni-app 页面。
+4. 设计稿实现目标是视觉一致，但要优先遵守本项目已有的交互模式、微信小程序约束和现有页面结构。
+
+#### Frontend 组织规则
+
+- 页面文件统一放在 `frontend/src/pages/`
+- 工具层放在 `frontend/src/utils/`
+- 若新增复用型 UI 组件，优先放在 `frontend/src/components/`（当前项目尚未系统化组件目录，新增前先确认是否真的需要抽离）
+- 页面优先沿用现有单文件 Vue (`.vue`) 结构，不引入新的前端架构层
+
+#### Styling Rules
+
+- 使用项目现有的 SCSS 变量体系，来源：
+  - `frontend/src/uni.scss`
+- 颜色、圆角、阴影、题型色、难度色优先复用已有变量，不新增随意的硬编码十六进制颜色
+- 页面整体风格保持“小程序教师工具”取向：
+  - 清晰
+  - 高信息密度
+  - 低学习成本
+  - 强可点击状态
+- 表单控件、卡片、底部操作条继续遵守当前项目常见视觉模式，不额外引入新设计系统库
+
+#### Component / Interaction Rules
+
+- `题型`、`难度` 视为结构属性，优先使用显式选择控件
+- `教材版本`、`知识点` 视为分类标签，优先使用标签/选择器而不是与结构属性混用
+- 所有高频操作必须是显式可见操作，避免依赖长按、隐藏菜单或只靠占位文案提示
+- 小程序触控区域保持足够大，按钮和标签操作区要适合教师在手机上快速点击
+
+#### Asset Handling
+
+- 如果 Figma MCP 返回本地资产地址，直接使用，不替换成占位图
+- 不额外引入新的图标包来替代 Figma 资源，除非项目现有资源无法满足且用户明确同意
+- 若设计稿涉及新增静态资源，优先放在 `frontend/src/static/`
+
+#### Validation Rules
+
+- 每次 Figma 到代码的实现都要至少核对：
+  - 页面层级
+  - 间距
+  - 颜色
+  - 字体大小
+  - 小程序端点击反馈
+- 能用现有前端测试覆盖的，优先补测试
+- 重大页面调整后，至少重新编译小程序并检查目标页面
+
 ### 前置条件
 
 1. **安装微信开发者工具**：https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html

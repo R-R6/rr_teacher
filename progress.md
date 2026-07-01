@@ -16,8 +16,55 @@
 | 数据库迁移治理 | 已完成第一版 | 已加入 Alembic scaffold、baseline migration 和生产禁用自动建表开关 |
 | 服务层拆分与任务化 | 进行中 | 已先抽出 Word 导出附图读取和 payload 构建逻辑 |
 | 时间显示修复 | 已完成第一版 | 题目/试卷列表改为按后端本地时间字符串解析显示，避免晚 8 小时 |
+| 难度标签自定义显示 | 已完成第一版 | 题库编辑和 OCR 结果快速保存的难度选择改为读取后端难度标签名称，支持超过 5 档后换行显示 |
+| 标签管理增强 | 已完成第一版 | 四类标签支持新增、改名、调整顺序和安全删除，标签页升级为显式可维护面板 |
+| Figma 官方工作流接入准备 | 已完成第一版 | 已安装 OpenAI 官方 Figma 技能组合，并补充项目内工作流说明，待配置 Figma MCP server |
+| Figma MCP 与设计规则草案 | 已完成第一版 | 已接入项目级 Figma MCP 配置并写入设计系统规则草案，待重启工具链后验证官方 Figma MCP 工具可用 |
 
 ## 本轮完成记录
+
+### 2026-06-29：难度标签自定义显示修复
+
+- 题库编辑页和 OCR 结果页的难度选择条改为读取后端 `difficulty` 标签，并按 `sort_order` 排序映射到难度级别；默认保持 5 档，超过 5 个标签时 UI 自动换行显示更多档位。
+- 新增前端难度标签映射工具 `frontend/src/utils/difficulty.js`，统一处理自定义标签、排序和默认文案兜底。
+- 标签管理页按难度排序展示，并显示每个难度标签当前对应的“难度 1/2/3/4/5...”位置，便于定位排序问题。
+- 后端新建标签在未传 `sort_order` 时自动使用同类型标签最大排序值 + 1，并在响应前 `flush`，确保返回可用 `tag_id`；题目难度保存/查询上限从 5 放宽到 20。
+- 补充前端映射测试和后端标签/难度 schema 测试，覆盖自定义难度文案、多于 5 档、默认兜底、自动排序和返回 ID。
+
+### 2026-06-30：标签管理增强第一版
+
+- 标签管理页重做为显式工具面板，四类标签统一支持新增、编辑、上移、下移和删除，不再依赖长按触发删除。
+- 新增标签编辑弹层，支持修改名称和排序位置；`题型`、`难度` 在列表中额外展示当前位置，便于老师理解当前顺序。
+- 后端新增 `PUT /api/tags/{tag_id}`，支持标签重命名和排序更新；前端 `tagsAPI` 同步补齐更新接口。
+- 删除标签前增加引用保护：若标签已被题目使用，后端阻止删除并返回明确提示，避免误删后影响题目数据。
+- 补充后端标签管理测试和前端标签页结构测试，覆盖标签更新、引用保护删除和显式编辑交互入口。
+
+### 2026-07-01：Figma 官方工作流接入准备
+
+- 已安装 OpenAI 官方技能：`figma-use`、`figma-generate-design`、`figma-create-design-system-rules`、`figma-implement-design`。
+- 新增 [docs/Figma_Workflow.md](docs/Figma_Workflow.md)，明确产品设计、设计系统规则、设计到代码的推荐工作流。
+- 在 [AGENTS.md](AGENTS.md) 中补充本项目 Figma 工作流入口，方便后续 Codex/Claude 协同使用。
+- 当前 `.mcp.json` 尚未配置 Figma MCP server，后续需补齐后才能直接执行完整的 Figma-to-code 链路。
+
+### 2026-07-01：Figma MCP 接入与设计规则草案
+
+- 在项目 [`.mcp.json`](.mcp.json) 中新增官方 Figma MCP 配置：
+  - `figma`
+  - `streamable_http`
+  - `https://mcp.figma.com/mcp`
+- 在 [AGENTS.md](AGENTS.md) 中补充本项目 Figma 设计系统规则草案，先约束：
+  - Figma 到代码的调用顺序
+  - `frontend/src/pages/` / `frontend/src/utils/` 的前端落位
+  - `frontend/src/uni.scss` 作为样式变量来源
+  - 小程序教师工具的交互与信息层级约定
+- 由于当前线程尚未暴露出 Figma MCP 工具，官方 `create_design_system_rules` 还不能直接运行，需在重启/刷新 MCP 后做最后验证。
+
+### 2026-07-01：修复 vite.config.js 在 ESM 下加载 uni 插件失败
+
+- 根因：`frontend/package.json` 声明了 `"type": "module"`,Node 原生 ESM 加载器不识别 CJS 产物里的 `__esModule` 标志,`import uni from '@dcloudio/vite-plugin-uni'` 拿到的是整个 exports 对象(包含 `default` / `runDev` / `runBuild`),而不是插件函数本身,`uni()` 因此报 `uni is not a function`。
+- 修复:`frontend/vite.config.js` 显式取 `.default`(`const uni = uniPlugin.default || uniPlugin`),同时兼容 CJS/ESM 两种导出形态。
+- 验证:`npx uni build -p mp-weixin` 通过,dist 里 `pages/question-edit/question-edit.wxml` 已包含"教材版本 / 知识点标签"新结构,不再有旧的统一"点击选择标签"入口。
+- 附带:发现 `frontend/src/pages/paper-detail/paper-detail.vue` 工作区改动是纯 UTF-8/GBK mojibake(无实质代码变化),已 `git checkout HEAD -- ...` 恢复,避免污染本次提交。
 
 ### 2026-06-24：生产化配置治理第一版
 
@@ -132,6 +179,8 @@
 - `python -m unittest tests.test_ocr_quota` 通过。
 - `node --test tests/ocr-quota.test.mjs` 通过。
 - `python -m py_compile app/api/ocr.py app/services/ocr_quota.py app/models.py app/config.py` 通过。
+- `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest discover -s tests -v` 通过。
+- `Get-ChildItem frontend/tests -Filter *.mjs | ForEach-Object { node $_.FullName }` 通过。
 - `npx uni build -p mp-weixin` 通过。
 - 用户已在新云托管镜像中验证手机端 Word 生成、预览和转发可用。
 
@@ -143,6 +192,7 @@
 | P1 | API 层部分业务逻辑偏厚，需要逐步抽 service | 待优化 |
 | P1 | 题目图片挂接需要继续加强用户归属校验 | 待优化 |
 | P2 | `npm run build:mp-weixin` 在 Windows 下仍受类 Unix 命令影响 | 待修复 |
+| ~~P2~~ | ~~`npm run build:mp-weixin` 当前加载 `vite.config.js` 报 `uni is not a function`,需核对 `@dcloudio/vite-plugin-uni` 导出方式/版本~~ | 已修复(2026-07-01) |
 
 ## 下一步开发计划
 

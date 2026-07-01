@@ -17,6 +17,10 @@
       "env": {
         "INTEGRATION_IDE": "ClaudeCode"
       }
+    },
+    "figma": {
+      "type": "streamable_http",
+      "url": "https://mcp.figma.com/mcp"
     }
   }
 }
