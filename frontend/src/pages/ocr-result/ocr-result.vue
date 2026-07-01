@@ -96,7 +96,7 @@
         <text class="modal-label">难度</text>
         <view class="modal-diff">
           <view
-            v-for="i in 5"
+            v-for="i in difficultyLabels.length"
             :key="i"
             :class="['diff-dot', saveForm.difficulty >= i ? 'active' : '']"
             @tap="saveForm.difficulty = i"
@@ -118,8 +118,10 @@
 </template>
 
 <script>
-import { questionsAPI } from '../../utils/api.js'
-import { QUESTION_TYPES } from '../../utils/util.js'
+import { questionsAPI, tagsAPI } from '../../utils/api.js'
+import { DIFFICULTY_LEVELS, QUESTION_TYPES } from '../../utils/util.js'
+import { buildDifficultyLabels } from '../../utils/difficulty.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 import {
   buildQuestionContent,
   buildOcrEditData,
@@ -154,11 +156,17 @@ export default {
         difficulty: 3,
         source: '',
       },
-      types: QUESTION_TYPES,
-      difficultyLabels: ['极易', '较易', '中等', '较难', '极难'],
+      typeTags: [],
+      difficultyTags: [],
     }
   },
   computed: {
+    types() {
+      return buildTypeConfigs(this.typeTags, QUESTION_TYPES)
+    },
+    difficultyLabels() {
+      return buildDifficultyLabels(this.difficultyTags, DIFFICULTY_LEVELS)
+    },
     engineInfo() {
       return ENGINE_LABELS[this.engine] || null
     },
@@ -191,6 +199,7 @@ export default {
     },
   },
   onLoad(options) {
+    this.loadDifficultyTags()
     if (!options.data) return
     try {
       const data = JSON.parse(decodeURIComponent(options.data))
@@ -210,6 +219,23 @@ export default {
     }
   },
   methods: {
+    async loadDifficultyTags() {
+      try {
+        const result = await tagsAPI.list()
+        const flat = []
+        const flatten = (nodes) => {
+          for (const node of nodes) {
+            flat.push(node)
+            if (node.children && node.children.length) flatten(node.children)
+          }
+        }
+        flatten(result || [])
+        this.difficultyTags = flat.filter(tag => tag.tag_type === 'difficulty')
+        this.typeTags = flat.filter(tag => tag.tag_type === 'type')
+      } catch (error) {
+        console.error('加载难度标签失败', error)
+      }
+    },
     handleEditableInput(event) {
       this.editableContent = event.detail.value
     },
@@ -592,11 +618,13 @@ export default {
 
 .modal-diff {
   display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
 }
 
 .diff-dot {
-  flex: 1;
+  flex: 0 0 calc((100% - 48rpx) / 5);
+  box-sizing: border-box;
   text-align: center;
   padding: 12rpx 0;
   border-radius: 12rpx;

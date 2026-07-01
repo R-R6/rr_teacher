@@ -61,6 +61,9 @@ class QuestionOption(BaseModel):
     text: str
 
 
+MAX_DIFFICULTY_LEVEL = 20
+
+
 class QuestionCreateReq(BaseModel):
     content: str = Field(..., min_length=1)
     answer: Optional[str] = None
@@ -69,7 +72,7 @@ class QuestionCreateReq(BaseModel):
         default="choice",
         pattern="^(choice|fill|experiment|calculation|short_answer)$",
     )
-    difficulty: int = Field(default=3, ge=1, le=5)
+    difficulty: int = Field(default=3, ge=1, le=MAX_DIFFICULTY_LEVEL)
     source: Optional[str] = Field(None, max_length=200)
     options: Optional[list[dict]] = None
     tag_ids: Optional[list[str]] = None
@@ -83,7 +86,7 @@ class QuestionUpdateReq(BaseModel):
     answer: Optional[str] = None
     analysis: Optional[str] = None
     question_type: Optional[str] = None
-    difficulty: Optional[int] = None
+    difficulty: Optional[int] = Field(None, ge=1, le=MAX_DIFFICULTY_LEVEL)
     source: Optional[str] = None
     options: Optional[list[dict]] = None
     tag_ids: Optional[list[str]] = None
@@ -184,7 +187,12 @@ class TagCreateReq(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     tag_type: str = Field(..., pattern="^(book|knowledge|type|difficulty)$")
     parent_id: Optional[str] = None
-    sort_order: int = 0
+    sort_order: Optional[int] = None
+
+
+class TagUpdateReq(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    sort_order: Optional[int] = None
 
 
 class TagResp(BaseModel):

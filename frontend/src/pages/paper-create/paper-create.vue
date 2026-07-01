@@ -95,8 +95,9 @@
 </template>
 
 <script>
-import { papersAPI, questionsAPI } from '../../utils/api.js'
+import { papersAPI, questionsAPI, tagsAPI } from '../../utils/api.js'
 import { truncate, QUESTION_TYPES } from '../../utils/util.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 
 export default {
   data() {
@@ -114,17 +115,29 @@ export default {
           { question_type: 'fill', difficulty_min: 2, difficulty_max: 4, count: 3, score_per_question: 6 },
         ],
       },
+      types: QUESTION_TYPES,
       typeOptions: Object.entries(QUESTION_TYPES).map(([k, v]) => ({ key: k, label: v.label })),
     }
   },
   onLoad(options) {
     if (options.mode === 'auto') this.mode = 'auto'
+    this.loadTypeTags()
     this.loadQuestions()
   },
   methods: {
     truncate,
-    getTypeName(type) { return QUESTION_TYPES[type]?.label || type },
-    getTypeColor(type) { return QUESTION_TYPES[type]?.color || '#6B7280' },
+    getTypeName(type) { return this.types[type]?.label || type },
+    getTypeColor(type) { return this.types[type]?.color || '#6B7280' },
+    async loadTypeTags() {
+      try {
+        const tags = await tagsAPI.list({})
+        const typeTags = (Array.isArray(tags) ? tags : []).filter((tag) => tag.tag_type === 'type')
+        this.types = buildTypeConfigs(typeTags, QUESTION_TYPES)
+        this.typeOptions = Object.entries(this.types).map(([k, v]) => ({ key: k, label: v.label }))
+      } catch (error) {
+        console.error('加载题型标签失败', error)
+      }
+    },
     async loadQuestions() {
       try {
         const res = await questionsAPI.list({ page: 1, page_size: 200 })

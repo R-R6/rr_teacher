@@ -177,6 +177,7 @@ export const papersAPI = {
 export const tagsAPI = {
   list: (params) => request({ url: '/tags/', data: params }),
   create: (data) => request({ url: '/tags/', method: 'POST', data }),
+  update: (id, data) => request({ url: `/tags/${id}`, method: 'PUT', data }),
   delete: (id) => request({ url: `/tags/${id}`, method: 'DELETE' }),
   seed: () => request({ url: '/tags/seed', method: 'POST' }),
 }

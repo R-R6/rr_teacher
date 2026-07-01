@@ -74,8 +74,9 @@
 </template>
 
 <script>
-import { questionsAPI } from '../../utils/api.js'
+import { questionsAPI, tagsAPI } from '../../utils/api.js'
 import { truncate, QUESTION_TYPES } from '../../utils/util.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 import { formatRelativeTime as formatTime } from '../../utils/time.js'
 
 export default {
@@ -91,6 +92,7 @@ export default {
       total: 0,
       loading: false,
       types: QUESTION_TYPES,
+      typeTags: [],
     }
   },
   onLoad() {
@@ -101,6 +103,7 @@ export default {
       this.statusBarHeight = 20
     }
     this.navHeight = this.statusBarHeight + 44
+    this.loadTypeTags()
   },
   onShow() {
     this.loadQuestions(1)
@@ -109,10 +112,20 @@ export default {
     truncate,
     formatTime,
     getTypeName(type) {
-      return QUESTION_TYPES[type]?.label || type
+      return this.types[type]?.label || type
     },
     getTypeColor(type) {
-      return QUESTION_TYPES[type]?.color || '#6B7280'
+      return this.types[type]?.color || '#6B7280'
+    },
+    async loadTypeTags() {
+      try {
+        const tags = await tagsAPI.list({})
+        const typeTags = (Array.isArray(tags) ? tags : []).filter((tag) => tag.tag_type === 'type')
+        this.types = buildTypeConfigs(typeTags, QUESTION_TYPES)
+        this.typeTags = typeTags
+      } catch (error) {
+        console.error('加载题型标签失败', error)
+      }
     },
     async loadQuestions(p) {
       const token = uni.getStorageSync('access_token')

@@ -173,6 +173,7 @@
 <script>
 import { questionsAPI, tagsAPI } from '../../utils/api.js'
 import { truncate, QUESTION_TYPES } from '../../utils/util.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 import { formatRelativeTime as formatTime } from '../../utils/time.js'
 
 const PRESET_TAGS = {
@@ -238,6 +239,7 @@ export default {
       PRESET_TAGS_TOTAL,
       PRESET_TAGS,
       CATEGORY_NAMES,
+      types: QUESTION_TYPES,
       // 底部弹窗
       showSheet: false,
       sheetMode: 'preview', // 'preview' | 'result'
@@ -278,10 +280,10 @@ export default {
     truncate,
     formatTime,
     getTypeName(type) {
-      return QUESTION_TYPES[type]?.label || type
+      return this.types[type]?.label || type
     },
     getTypeColor(type) {
-      return QUESTION_TYPES[type]?.color || '#6B7280'
+      return this.types[type]?.color || '#6B7280'
     },
     async loadRecentQuestions() {
       const token = uni.getStorageSync('access_token')
@@ -300,6 +302,8 @@ export default {
         const tags = await tagsAPI.list({})
         this.tagCount = Array.isArray(tags) ? tags.length : 0
         this.existingTagNames = new Set((tags || []).map((t) => t.name))
+        const typeTags = (Array.isArray(tags) ? tags : []).filter((tag) => tag.tag_type === 'type')
+        this.types = buildTypeConfigs(typeTags, QUESTION_TYPES)
       } catch (e) {
         // 静默失败，不影响首页
       }

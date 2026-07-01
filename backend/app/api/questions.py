@@ -20,7 +20,7 @@ from app.models import (
     QuestionTagRel,
     User,
 )
-from app.schemas import ApiResp, QuestionCreateReq, QuestionUpdateReq
+from app.schemas import ApiResp, MAX_DIFFICULTY_LEVEL, QuestionCreateReq, QuestionUpdateReq
 from app.services.question_service import (
     load_question_images,
     load_question_tags,
@@ -131,7 +131,7 @@ async def get_question(
 async def list_questions(
     keyword: str = Query(None),
     question_type: str = Query(None),
-    difficulty: int = Query(None, ge=1, le=5),
+    difficulty: int = Query(None, ge=1, le=MAX_DIFFICULTY_LEVEL),
     tag_ids: str = Query(None),
     is_public: bool = Query(None),
     page: int = Query(1, ge=1),

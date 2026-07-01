@@ -3,14 +3,33 @@
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import get_db
-from app.models import User, QuestionTag
-from app.schemas import TagCreateReq, TagResp, ApiResp
+from app.models import User, QuestionTag, QuestionTagRel
+from app.schemas import TagCreateReq, TagResp, TagUpdateReq, ApiResp
 from app.auth import get_current_user, get_current_teacher
 
 router = APIRouter()
+
+
+async def get_next_sort_order(db: AsyncSession, tag_type: str) -> int:
+    """获取指定类型标签的下一个排序值"""
+    result = await db.execute(
+        select(QuestionTag.sort_order)
+        .where(QuestionTag.tag_type == tag_type)
+        .order_by(QuestionTag.sort_order.desc())
+        .limit(1)
+    )
+    max_sort = result.scalar_one_or_none()
+    return (max_sort or 0) + 1
+
+
+async def get_tag_usage_count(db: AsyncSession, tag_id: str) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(QuestionTagRel).where(QuestionTagRel.tag_id == tag_id)
+    )
+    return result.scalar() or 0
 
 
 @router.post("", response_model=ApiResp)
@@ -25,14 +44,48 @@ async def create_tag(
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="标签名已存在")
 
+    # 如果没传 sort_order，自动分配（针对难度标签特别重要）
+    sort_order = req.sort_order if req.sort_order is not None else await get_next_sort_order(db, req.tag_type)
+
     tag = QuestionTag(
         name=req.name,
         tag_type=req.tag_type,
         parent_id=req.parent_id,
-        sort_order=req.sort_order,
+        sort_order=sort_order,
     )
     db.add(tag)
+    await db.flush()
     return ApiResp(message="标签创建成功", data={"tag_id": tag.id})
+
+
+@router.put("/{tag_id}", response_model=ApiResp)
+async def update_tag(
+    tag_id: str,
+    req: TagUpdateReq,
+    current_user: User = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新标签名称和排序"""
+    result = await db.execute(select(QuestionTag).where(QuestionTag.id == tag_id))
+    tag = result.scalar_one_or_none()
+    if not tag:
+        raise HTTPException(status_code=404, detail="标签不存在")
+
+    duplicate = await db.execute(
+        select(QuestionTag).where(
+            QuestionTag.name == req.name,
+            QuestionTag.id != tag_id,
+        )
+    )
+    if duplicate.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="标签名已存在")
+
+    tag.name = req.name
+    if req.sort_order is not None:
+        tag.sort_order = req.sort_order
+
+    await db.flush()
+    return ApiResp(message="标签更新成功", data={"tag_id": tag.id})
 
 
 @router.get("", response_model=ApiResp)
@@ -91,6 +144,11 @@ async def delete_tag(
     tag = result.scalar_one_or_none()
     if not tag:
         raise HTTPException(status_code=404, detail="标签不存在")
+
+    usage_count = await get_tag_usage_count(db, tag_id)
+    if usage_count:
+        raise HTTPException(status_code=400, detail=f"该标签已被 {usage_count} 道题目使用，暂时不能删除")
+
     await db.delete(tag)
     return ApiResp(message="标签已删除")
 

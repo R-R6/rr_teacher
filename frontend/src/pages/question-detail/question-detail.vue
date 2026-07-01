@@ -65,26 +65,38 @@
 </template>
 
 <script>
-import { questionsAPI } from '../../utils/api.js'
+import { questionsAPI, tagsAPI } from '../../utils/api.js'
 import { QUESTION_TYPES } from '../../utils/util.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 
 export default {
   data() {
     return {
       questionId: '',
       question: null,
+      types: QUESTION_TYPES,
     }
   },
   onLoad(options) {
     this.questionId = options.id
+    this.loadTypeTags()
     this.loadQuestion()
   },
   methods: {
     getTypeName(type) {
-      return QUESTION_TYPES[type]?.label || type
+      return this.types[type]?.label || type
     },
     getTypeColor(type) {
-      return QUESTION_TYPES[type]?.color || '#6B7280'
+      return this.types[type]?.color || '#6B7280'
+    },
+    async loadTypeTags() {
+      try {
+        const tags = await tagsAPI.list({})
+        const typeTags = (Array.isArray(tags) ? tags : []).filter((tag) => tag.tag_type === 'type')
+        this.types = buildTypeConfigs(typeTags, QUESTION_TYPES)
+      } catch (error) {
+        console.error('加载题型标签失败', error)
+      }
     },
     async loadQuestion() {
       try {

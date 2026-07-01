@@ -84,7 +84,7 @@
       <text class="section-title">难度</text>
       <view class="difficulty-bar">
         <view
-          v-for="i in 5"
+          v-for="i in difficultyLabels.length"
           :key="i"
           :class="['diff-item', form.difficulty >= i ? 'active' : '']"
           :style="form.difficulty >= i ? { background: getDiffColor(i) } : {}"
@@ -101,16 +101,33 @@
     </view>
 
     <view class="form-section">
-      <text class="section-title">标签</text>
-      <picker :range="tagNameList" mode="multiSelector" @change="onTagChange" @columnchange="onTagColumnChange">
+      <text class="section-title">教材版本</text>
+      <picker :range="bookTagNames" :value="selectedBookIndex" @change="onBookTagChange">
         <view class="picker-trigger">
-          <text v-if="form.tag_ids.length" class="picker-text">已选 {{ form.tag_ids.length }} 个标签</text>
-          <text v-else class="picker-placeholder">点击选择标签</text>
+          <text v-if="selectedBookTag" class="picker-text">{{ selectedBookTag.name }}</text>
+          <text v-else class="picker-placeholder">点击选择教材版本</text>
           <text class="picker-arrow">▼</text>
         </view>
       </picker>
-      <view v-if="form.tag_ids.length" class="selected-tags">
-        <view v-for="tag in selectedTagList" :key="tag.id" class="selected-tag" @tap="removeTag(tag.id)">
+    </view>
+
+    <view class="form-section">
+      <view class="section-header-row">
+        <text class="section-title">知识点标签</text>
+        <text class="section-helper">可多选</text>
+      </view>
+      <view class="knowledge-grid">
+        <view
+          v-for="tag in knowledgeTags"
+          :key="tag.id"
+          :class="['knowledge-chip', selectedKnowledgeIds.includes(tag.id) ? 'knowledge-chip--active' : '']"
+          @tap="toggleKnowledgeTag(tag.id)"
+        >
+          <text :class="['knowledge-chip__text', selectedKnowledgeIds.includes(tag.id) ? 'knowledge-chip__text--active' : '']">{{ tag.name }}</text>
+        </view>
+      </view>
+      <view v-if="selectedKnowledgeTags.length" class="selected-tags">
+        <view v-for="tag in selectedKnowledgeTags" :key="tag.id" class="selected-tag" @tap="toggleKnowledgeTag(tag.id)">
           <text>{{ tag.name }}</text>
           <text class="tag-del">×</text>
         </view>
@@ -147,6 +164,8 @@
 <script>
 import { questionsAPI, tagsAPI, uploadAPI } from '../../utils/api.js'
 import { DIFFICULTY_LEVELS, QUESTION_TYPES } from '../../utils/util.js'
+import { buildDifficultyLabels } from '../../utils/difficulty.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 import { buildOcrEditData, getNextOptionLabel, sortOptionsByLabel } from '../../utils/ocr-result-helpers.js'
 
 export default {
@@ -173,26 +192,45 @@ export default {
         images: [],
       },
       allTags: [],
-      tagCategories: ['教材', '知识点', '题型标签', '难度标签'],
-      tagCategoryKeys: ['book', 'knowledge', 'type', 'difficulty'],
-      currentCategoryIndex: 0,
-      types: QUESTION_TYPES,
+      difficultyTags: [],
+      typeTags: [],
       pendingOcrEditData: null,
       optionLabels: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
     }
   },
   computed: {
-    tagNameList() {
-      const categoryKey = this.tagCategoryKeys[this.currentCategoryIndex] || 'book'
-      const tags = this.allTags.filter(tag => tag.tag_type === categoryKey)
-      return [this.tagCategories, tags.map(tag => tag.name)]
+    difficultyLabels() {
+      return buildDifficultyLabels(this.difficultyTags, DIFFICULTY_LEVELS)
     },
-    currentCategoryTags() {
-      const categoryKey = this.tagCategoryKeys[this.currentCategoryIndex] || 'book'
-      return this.allTags.filter(tag => tag.tag_type === categoryKey)
+    types() {
+      return buildTypeConfigs(this.typeTags, QUESTION_TYPES)
     },
-    selectedTagList() {
-      return this.allTags.filter(tag => this.form.tag_ids.includes(tag.id))
+    bookTags() {
+      return this.allTags
+        .filter(tag => tag.tag_type === 'book')
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    },
+    bookTagNames() {
+      return this.bookTags.map(tag => tag.name)
+    },
+    selectedBookTag() {
+      return this.bookTags.find(tag => this.form.tag_ids.includes(tag.id)) || null
+    },
+    selectedBookIndex() {
+      if (!this.selectedBookTag) return 0
+      const index = this.bookTags.findIndex(tag => tag.id === this.selectedBookTag.id)
+      return index >= 0 ? index : 0
+    },
+    knowledgeTags() {
+      return this.allTags
+        .filter(tag => tag.tag_type === 'knowledge')
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    },
+    selectedKnowledgeIds() {
+      return this.form.tag_ids.filter(id => this.knowledgeTags.some(tag => tag.id === id))
+    },
+    selectedKnowledgeTags() {
+      return this.knowledgeTags.filter(tag => this.selectedKnowledgeIds.includes(tag.id))
     },
   },
   onLoad(options) {
@@ -275,29 +313,28 @@ export default {
       return config.color || '#F59E0B'
     },
     getDiffLabel(level) {
-      const config = DIFFICULTY_LEVELS[level] || {}
-      return config.label || ''
+      return this.difficultyLabels[level - 1] || ''
     },
     imageTypeLabel(image) {
       if (image.image_type === 'manual_figure') return '手动附图'
       if (image.image_type === 'figure') return '附图'
       return image.image_type || '附图'
     },
-    onTagColumnChange(event) {
-      if (event.detail.column === 0) {
-        this.currentCategoryIndex = event.detail.value
+    onBookTagChange(event) {
+      const nextTag = this.bookTags[event.detail.value]
+      const nextIds = this.form.tag_ids.filter(id => !this.bookTags.some(tag => tag.id === id))
+      if (nextTag) {
+        nextIds.push(nextTag.id)
       }
+      this.form.tag_ids = nextIds
     },
-    onTagChange(event) {
-      const tagIndex = event.detail.value[1]
-      const tag = this.currentCategoryTags[tagIndex]
-      if (tag && !this.form.tag_ids.includes(tag.id)) {
-        this.form.tag_ids.push(tag.id)
-      }
-    },
-    removeTag(id) {
-      const index = this.form.tag_ids.indexOf(id)
-      if (index >= 0) this.form.tag_ids.splice(index, 1)
+    toggleKnowledgeTag(tagId) {
+      const nextIds = this.form.tag_ids.filter(id => !this.knowledgeTags.some(tag => tag.id === id))
+      const selected = this.selectedKnowledgeIds.includes(tagId)
+      const knowledgeIds = selected
+        ? this.selectedKnowledgeIds.filter(id => id !== tagId)
+        : [...this.selectedKnowledgeIds, tagId]
+      this.form.tag_ids = [...nextIds, ...knowledgeIds]
     },
     optionLabelPickerValue(label) {
       const index = this.optionLabels.indexOf(String(label || '').toUpperCase())
@@ -380,6 +417,13 @@ export default {
         }
         flatten(result || [])
         this.allTags = flat
+        // 提取难度标签，按 sort_order 排序
+        this.difficultyTags = flat
+          .filter(tag => tag.tag_type === 'difficulty')
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        this.typeTags = flat
+          .filter(tag => tag.tag_type === 'type')
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
       } catch (error) {
         console.error(error)
       }
@@ -475,6 +519,18 @@ export default {
   font-weight: 600;
   color: #1F2937;
   margin-bottom: 12rpx;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.section-helper {
+  font-size: 22rpx;
+  color: #94A3B8;
 }
 
 .form-textarea {
@@ -592,11 +648,13 @@ export default {
 
 .difficulty-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
 }
 
 .diff-item {
-  flex: 1;
+  flex: 0 0 calc((100% - 48rpx) / 5);
+  box-sizing: border-box;
   text-align: center;
   padding: 16rpx 0;
   border-radius: 12rpx;
@@ -644,6 +702,37 @@ export default {
   flex-wrap: wrap;
   gap: 12rpx;
   margin-top: 16rpx;
+}
+
+.knowledge-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.knowledge-chip {
+  min-height: 64rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: #FFFFFF;
+  box-shadow: inset 0 0 0 2rpx #E5E7EB;
+  display: flex;
+  align-items: center;
+}
+
+.knowledge-chip--active {
+  background: rgba(74, 108, 247, 0.12);
+  box-shadow: inset 0 0 0 2rpx rgba(74, 108, 247, 0.24);
+}
+
+.knowledge-chip__text {
+  font-size: 24rpx;
+  color: #64748B;
+}
+
+.knowledge-chip__text--active {
+  color: #3155D4;
+  font-weight: 600;
 }
 
 .selected-tag {

@@ -85,8 +85,9 @@
 </template>
 
 <script>
-import { practiceAPI } from '../../utils/api.js'
+import { practiceAPI, tagsAPI } from '../../utils/api.js'
 import { QUESTION_TYPES, latexToUnicode } from '../../utils/util.js'
+import { buildTypeConfigs } from '../../utils/type-config.js'
 
 export default {
   data() {
@@ -102,6 +103,7 @@ export default {
       elapsedSeconds: 0,
       timerRunning: false,
       questionStartTime: 0,
+      types: QUESTION_TYPES,
     }
   },
   computed: {
@@ -113,12 +115,22 @@ export default {
     const mode = options.mode || 'sequential'
     const tagId = options.tag_id || ''
     const tag_name = options.tag_name || ''
+    this.loadTypeTags()
     this.loadQuestions(mode, tagId)
   },
   methods: {
     latexToUnicode,
-    getTypeName(type) { return QUESTION_TYPES[type]?.label || type },
-    getTypeColor(type) { return QUESTION_TYPES[type]?.color || '#6B7280' },
+    getTypeName(type) { return this.types[type]?.label || type },
+    getTypeColor(type) { return this.types[type]?.color || '#6B7280' },
+    async loadTypeTags() {
+      try {
+        const tags = await tagsAPI.list({})
+        const typeTags = (Array.isArray(tags) ? tags : []).filter((tag) => tag.tag_type === 'type')
+        this.types = buildTypeConfigs(typeTags, QUESTION_TYPES)
+      } catch (error) {
+        console.error('加载题型标签失败', error)
+      }
+    },
 
     async loadQuestions(mode, tagId) {
       uni.showLoading({ title: '加载中...' })
