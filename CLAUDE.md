@@ -129,6 +129,23 @@ The system uses a dual-engine approach:
 | **uniapp-wechat** | `uniapp-wechat-mcp` | uni-app 小程序开发：构建、预览、截图、自动化测试 | ✅ 已配置 |
 | **weixin-devtools** | `weixin-devtools-mcp` | 微信开发者工具自动化：31个工具，含断言/网络监控/调试 | ✅ 已配置 |
 
+## Figma 工作流
+
+项目已安装 OpenAI 官方技能：
+
+- `figma-use`
+- `figma-generate-design`
+- `figma-create-design-system-rules`
+- `figma-implement-design`
+
+项目级说明见：
+
+- [docs/Figma_Workflow.md](docs/Figma_Workflow.md)
+
+项目级 Claude 规则见：
+
+- [.claude/rules/figma-design-system.md](.claude/rules/figma-design-system.md)
+
 ### 前置条件
 
 1. **安装微信开发者工具**：https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html
