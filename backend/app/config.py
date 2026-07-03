@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080
+    ADMIN_USER_IDS: str = ""
+    ADMIN_USERNAMES: str = ""
 
     COS_SECRET_ID: str = ""
     COS_SECRET_KEY: str = ""

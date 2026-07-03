@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, questions, ocr, papers, tags, export, mistakes, practice, admin
+from app.api import auth, questions, ocr, papers, tags, export, mistakes, practice, admin, admin_console
 from app.api import upload as upload_api
 
 logger = logging.getLogger(__name__)
@@ -167,6 +167,12 @@ uploads_dir = os.path.normpath(uploads_dir)
 os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
+admin_console_dir = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend", "admin-dist")
+)
+if os.path.isdir(admin_console_dir):
+    app.mount("/admin-console", StaticFiles(directory=admin_console_dir, html=True), name="admin-console")
+
 
 # ─── 注册路由 ───
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
@@ -178,6 +184,7 @@ app.include_router(export.router, prefix="/api/export", tags=["Word导出"])
 app.include_router(mistakes.router, prefix="/api/mistakes", tags=["错题本"])
 app.include_router(practice.router, prefix="/api/practice", tags=["刷题练习"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理工具"])
+app.include_router(admin_console.router, prefix="/api/admin", tags=["开发者控制台"])
 app.include_router(upload_api.router, prefix="/api/upload", tags=["文件上传"])
 
 

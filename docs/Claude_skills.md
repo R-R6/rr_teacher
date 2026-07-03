@@ -51,14 +51,14 @@
 
 ### 🎨 设计与创意类
 
-| Skill | 说明 | 使用示例 |
-|-------|------|---------|
-| `frontend-design` | 创建高质量前端界面 | "帮我设计一个精美的登录页面" |
-| `canvas-design` | 创建海报/平面设计（PNG/PDF） | "帮我做一张活动海报" |
-| `algorithmic-art` | 用 p5.js 创建生成艺术 | "用代码生成一个粒子动画" |
-| `brand-guidelines` | 应用 Anthropic 品牌风格 | "用 Anthropic 品牌风格设计" |
-| `theme-factory` | 为文档/页面应用主题样式 | "给这个页面换个主题" |
-| `slack-gif-creator` | 创建 Slack 动画 GIF | "做一个 Slack 表情 GIF" |
+| Skill               | 说明                 | 使用示例                 |
+| ------------------- | ------------------ | -------------------- |
+| `frontend-design`   | 创建高质量前端界面          | "帮我设计一个精美的登录页面"      |
+| `canvas-design`     | 创建海报/平面设计（PNG/PDF） | "帮我做一张活动海报"          |
+| `algorithmic-art`   | 用 p5.js 创建生成艺术     | "用代码生成一个粒子动画"        |
+| `brand-guidelines`  | 应用 Anthropic 品牌风格  | "用 Anthropic 品牌风格设计" |
+| `theme-factory`     | 为文档/页面应用主题样式       | "给这个页面换个主题"          |
+| `slack-gif-creator` | 创建 Slack 动画 GIF    | "做一个 Slack 表情 GIF"   |
 
 ### 💻 开发工具类
 

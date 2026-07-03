@@ -18,6 +18,13 @@ class QuestionsApiTests(unittest.TestCase):
         self.assertIn("QuestionTag", source)
         self.assertIn("QuestionTagRel", source)
 
+    def test_question_update_flushes_deleted_tag_relations_before_reinsert(self):
+        source = QUESTIONS_API.read_text(encoding="utf-8")
+        function_block = source.split("async def update_question(", 1)[1].split("@router.delete", 1)[0]
+        self.assertIn("for rel in old_rels:", function_block)
+        self.assertIn("await db.delete(rel)", function_block)
+        self.assertIn("await db.flush()", function_block)
+
 
 if __name__ == "__main__":
     unittest.main()

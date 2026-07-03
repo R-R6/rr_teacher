@@ -233,6 +233,7 @@ async def update_question(
         ).scalars().all()
         for rel in old_rels:
             await db.delete(rel)
+        await db.flush()
         for tag_id in req.tag_ids:
             db.add(QuestionTagRel(question_id=question_id, tag_id=tag_id))
 

@@ -18,10 +18,211 @@
 | 时间显示修复 | 已完成第一版 | 题目/试卷列表改为按后端本地时间字符串解析显示，避免晚 8 小时 |
 | 难度标签自定义显示 | 已完成第一版 | 题库编辑和 OCR 结果快速保存的难度选择改为读取后端难度标签名称，支持超过 5 档后换行显示 |
 | 标签管理增强 | 已完成第一版 | 四类标签支持新增、改名、调整顺序和安全删除，标签页升级为显式可维护面板 |
+| 个人开发者控制台 | 已完成第一版 | 已完成后台管理 API、独立 `admin-web` 工程、首期页面、静态挂载、接口联调、第一轮 UI/UX 收口与一轮 HTTP/API 级 QA，剩余浏览器自动化烟雾验证 |
 | Figma 官方工作流接入准备 | 已完成第一版 | 已安装 OpenAI 官方 Figma 技能组合，并补充项目内工作流说明，待配置 Figma MCP server |
 | Figma MCP 与设计规则草案 | 已完成第一版 | 已接入项目级 Figma MCP 配置并写入设计系统规则草案，待重启工具链后验证官方 Figma MCP 工具可用 |
+| Figma 工作流规则与设计系统参考 | 已完成第一版 | 拆出独立 `.claude/rules/figma-design-system.md`，补充 `docs/Figma_MCP_Setup.md` 与参考图，`.mcp.json` 切换到 `figma-developer-mcp` stdio 模式 |
 
 ## 本轮完成记录
+
+### 2026-07-03：个人开发者控制台一轮 HTTP/API 级 QA 结论
+
+- 已完成一轮以“常见路径 + 潜在风险点”为核心的后台 QA，覆盖：
+  - 登录与 `GET /api/admin/me`
+  - 仪表盘摘要 / 趋势 / 风险
+  - 题库列表、详情、编辑保存、非法难度拦截
+  - 标签创建、重名拦截、引用保护删除、解绑后删除
+  - 试卷创建、筛选、删除
+  - OCR 记录列表、详情、修正、按 `corrected` 过滤
+  - 用户列表、系统状态、成本监控
+- 本轮 QA 中发现并已修复的高优先级问题：
+  - 登录后 `adminApi.getAdminMe()` 缺失导致前端报 `is not a function`
+  - 题目详情抽屉底部内容被裁切
+  - 题目保存时标签关系更新触发 500
+  - `QuestionUpdateReq` 缺少 `is_public` / `is_verified` 字段，前端复选框勾选后静默失效
+  - `QuestionUpdateReq.question_type` 缺少枚举校验，非法值可污染数据库并导致后续列表/详情 500
+- 本轮 QA 完成后的结论：
+  - 后台“HTTP/API 主链路”已达到可用状态；
+  - 常见内容维护动作不再依赖直接改数据库；
+  - 剩余未闭环部分主要集中在浏览器自动化烟雾验证，而不是后台主接口可用性。
+- 已完成验证：
+  - `C:/Users/admin/scoop/apps/python/current/python.exe scripts/smoke_admin_console.py`
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest backend.tests.test_question_update_schema backend.tests.test_admin_console_routes backend.tests.test_questions_api backend.tests.test_smoke_admin_console -v`
+  - `node --test admin-web/tests/*.test.mjs`
+
+### 2026-07-03：个人开发者控制台第一轮 UI/UX 收口
+
+- 新增前端列表状态工具与测试：
+  - `admin-web/src/utils/list-state.js` 统一处理筛选摘要、结果区间和空状态文案；
+  - `admin-web/tests/list-state.test.mjs` 覆盖激活筛选条件、结果计数和空状态分支。
+- 收口后台高频列表页体验：
+  - `QuestionsPage.vue`
+  - `OcrRecordsPage.vue`
+  - `PapersPage.vue`
+  - `UsersPage.vue`
+  - `TagsPage.vue`
+  - 统一补上“结果摘要 + 已启用筛选条件 + 空状态提示 + 加载中提示 + 表格横向滚动兜底”。
+- 新增 `admin-web/src/components/ListStateSummary.vue`，复用列表页状态摘要块，避免每个页面各写一套说明。
+- 优化后台视觉与层级表达：
+  - `admin-web/src/styles/global.css` 补充更稳定的焦点态、按钮反馈、表格容器、空状态、顶部吸附栏和摘要块样式；
+  - `admin-web/src/layouts/ControlShell.vue` 顶部栏增加当前登录账号提示；
+  - `admin-web/src/pages/LoginPage.vue` 登录页补充运行状态入口说明。
+- 已完成验证：
+  - `node --test admin-web/tests/*.test.mjs`
+  - `node admin-web/scripts/build.mjs`
+
+### 2026-07-03：个人开发者控制台烟雾验证链路补稳
+
+- 新增 `backend/tests/test_smoke_admin_console.py`，覆盖：
+  - `scripts/smoke_admin_console.py` 支持通过 `ADMIN_SMOKE_BACKEND_PYTHON` 显式指定后端解释器；
+  - 后端启动失败时会输出退出码和日志尾部，避免只剩 `health check failed`。
+- 更新 `scripts/smoke_admin_console.py`：
+  - 临时后端改为写入 `.tmp_admin_smoke_backend.out.log` / `.tmp_admin_smoke_backend.err.log`；
+  - 后端未成功拉起时，优先返回真实根因（例如缺少 `uvicorn`）；
+  - 允许在多 Python 环境下稳定复用同一个 HTTP 级后台 smoke 入口。
+- 更新 [docs/Admin_Console.md](docs/Admin_Console.md)：
+  - 补充 `ADMIN_SMOKE_BACKEND_PYTHON` 用法；
+  - 明确当前 `agent-browser` 仍受 Chrome/CDP 自动拉起问题影响，HTTP 级 smoke 仍是稳定替代入口。
+- 已完成验证：
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest backend.tests.test_smoke_admin_console -v`
+  - `set ADMIN_SMOKE_BACKEND_PYTHON=C:/Users/admin/scoop/apps/python/current/python.exe && C:/Users/admin/scoop/apps/python/current/python.exe scripts/smoke_admin_console.py`
+
+### 2026-07-03：修复后台登录后 `getAdminMe` 调用报错
+
+- 新增 `admin-web/tests/admin-api.test.mjs`，约束登录页依赖的 `adminApi.getAdminMe()` 必须存在，避免再次出现 “is not a function”。
+- 更新 `admin-web/src/api/admin.js`，将 `getAdminMe()` 同时暴露给 `adminApi`，保持与登录页调用点一致，避免登录成功后在拉取后台白名单用户信息时中断。
+- 已完成验证：
+  - `node --test admin-web/tests/admin-api.test.mjs`
+  - `node --test admin-web/tests/*.test.mjs`
+  - `node admin-web/scripts/build.mjs`
+
+### 2026-07-03：修复题目详情抽屉底部内容被裁切
+
+- 新增 `admin-web/tests/drawer-layout.test.mjs`，约束右侧抽屉面板与滚动容器必须具备可收缩、可滚动的布局条件，防止“标签”区域及底部操作被截断。
+- 更新 `admin-web/src/styles/global.css`：
+  - 为 `.drawer__panel` 增加 `min-height: 0` 与 `overflow: hidden`；
+  - 为 `.drawer__body` 增加 `flex: 1`、`min-height: 0` 与 `overscroll-behavior: contain`；
+  - 使题目详情在内容较长时由抽屉内部滚动，而不是在视口底部直接被裁掉。
+- 已完成验证：
+  - `node --test admin-web/tests/drawer-layout.test.mjs`
+  - `node --test admin-web/tests/*.test.mjs`
+  - `node admin-web/scripts/build.mjs`
+
+### 2026-07-03：修复编辑题目保存时标签关系更新触发 500
+
+- 根因定位：
+  - 后台管理接口 `PUT /api/admin/questions/{id}` 在“先删旧标签、再插入新标签”时没有先 `flush`；
+  - 在 SQLite 下会先碰到 `uq_question_tag` 唯一约束，导致保存同一组标签时也可能返回 500。
+- 新增后端回归测试：
+  - `backend/tests/test_admin_console_routes.py`
+  - `backend/tests/test_questions_api.py`
+  - 约束题目更新函数在重建标签关系前必须先 `await db.flush()` 已删除的旧关联。
+- 更新后端实现：
+  - `backend/app/api/admin_console.py`
+  - `backend/app/api/questions.py`
+  - 在删除旧的 `QuestionTagRel` 后先 `flush`，再插入新的标签关联，避免唯一约束冲突。
+- 已完成验证：
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest backend.tests.test_admin_console_routes backend.tests.test_questions_api -v`
+  - 真实复现并验证 `PUT /api/admin/questions/{id}` 从 500 恢复为 200。
+
+### 2026-07-03：修复题目编辑更新 schema 的两个请求层缺口
+
+- 根因定位：
+  - `QuestionUpdateReq` 未约束 `question_type` 可选值，非法值可直接写入数据库，随后列表/详情读取会因 Enum 反序列化失败返回 500；
+  - `QuestionUpdateReq` 缺少 `is_public` / `is_verified` 字段，前端复选框勾选后会被请求层静默丢弃，界面看似保存成功但实际未生效。
+- 新增回归测试：
+  - `backend/tests/test_question_update_schema.py`
+  - 约束非法 `question_type` 必须被请求层拒绝；
+  - 约束 `is_public` / `is_verified` 必须进入更新 payload。
+- 更新后端实现：
+  - `backend/app/schemas.py`
+  - 为 `QuestionUpdateReq.question_type` 补充枚举 pattern 校验；
+  - 为 `QuestionUpdateReq` 补充 `is_public` / `is_verified` 字段。
+- 补充验证：
+  - 真实接口复验确认 `is_public / is_verified` 现在可以从编辑页正确落库；
+  - 真实接口复验确认非法 `question_type` 现在返回 422，不再污染数据库。
+- 已完成验证：
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest backend.tests.test_question_update_schema backend.tests.test_admin_console_routes backend.tests.test_questions_api backend.tests.test_smoke_admin_console -v`
+  - `C:/Users/admin/scoop/apps/python/current/python.exe scripts/smoke_admin_console.py`
+
+### 2026-07-03：个人开发者控制台第一版研发推进
+
+- 新增后台权限基础能力：
+  - `backend/app/config.py` 增加 `ADMIN_USER_IDS`、`ADMIN_USERNAMES` 配置项；
+  - `backend/app/auth.py` 增加 `get_current_admin`；
+  - `backend/app/services/admin_console_service.py` 增加后台白名单解析与系统状态脱敏 helper。
+- 新增 `backend/app/api/admin_console.py`，补齐个人开发者控制台首期管理向接口：
+  - `GET /api/admin/me`
+  - `GET /api/admin/dashboard/summary`
+  - `GET /api/admin/dashboard/ocr-trend`
+  - `GET /api/admin/dashboard/recent-risks`
+  - `GET/PUT/DELETE /api/admin/questions`
+  - `GET/POST/PUT/DELETE /api/admin/tags`
+  - `GET /api/admin/ocr-records`
+  - `GET /api/admin/ocr-records/{record_id}`
+  - `POST /api/admin/ocr-records/{record_id}/correct`
+  - `GET/DELETE /api/admin/papers`
+  - `GET /api/admin/users`
+  - `GET /api/admin/users/{user_id}`
+  - `GET /api/admin/cost/ocr-usage`
+  - `GET /api/admin/system/status`
+- `backend/app/main.py` 已注册新的 `admin_console` 路由，后台 API 已进入主服务。
+- 新增独立 Web 管理台工程 `admin-web/`：
+  - 独立路由与登录页；
+  - 首期页面：仪表盘、题库、标签、OCR 记录、试卷、用户、成本监控、系统状态；
+  - 使用 `Vue 3 + vue-router + 纯 CSS + 原生构建图表/表格`，不依赖额外 UI 库；
+  - 增加 `scripts/build.mjs` 等脚本，绕过当前环境下 Vite CLI 临时配置文件写入问题。
+- 已生成后台构建产物到 `frontend/admin-dist/`，当前产物可成功构建。
+- 新增测试：
+  - `backend/tests/test_admin_console_service.py`
+  - `backend/tests/test_admin_console_routes.py`
+  - `admin-web/tests/navigation.test.mjs`
+  - `admin-web/tests/auth-storage.test.mjs`
+- 当前判断：
+  - 后台“代码层面”已经进入首期可用状态；
+  - 后台“交付层面”还差最终静态挂载、`.env` 模板补充和浏览器联调，不应记为完全完成。
+
+### 2026-07-03：个人开发者控制台接入与联调补完
+
+- 已补齐后端接入：
+  - `backend/app/main.py` 新增 `/admin-console` 静态挂载，指向 `frontend/admin-dist/`；
+  - `backend/.env.example`、`backend/.env.cloud.example` 已补 `ADMIN_USER_IDS` / `ADMIN_USERNAMES` 示例。
+- 已完成后台构建产物联调：
+  - `GET /admin-console/` 返回 200；
+  - `GET /admin-console/admin.js` 返回 200；
+  - `GET /admin-console/asset-index.css` 返回 200。
+- 已完成后台首期接口联调：
+  - 登录获取 JWT 成功；
+  - `dashboard/summary` 返回题目/标签/试卷/用户/OCR 汇总；
+  - `questions`、`tags`、`papers`、`users`、`cost/ocr-usage`、`system/status` 均成功返回数据；
+  - 通过本地夹具补充并验证了 `ocr-records` 列表和详情接口。
+- 联调结果说明：
+  - 后台第一版已经具备“可访问、可登录、可调管理接口”的交付条件；
+  - 浏览器自动化烟雾测试尝试过，但当前线程环境下 `agent-browser` 受本机 npm cache / Chrome 接管链路影响未跑通，因此没有把“自动化浏览器验收”记为完成。
+
+### 2026-07-03：个人开发者控制台可用性补强
+
+- 新增 `backend/tests/test_admin_console_static.py`，验证：
+  - `/admin-console/` 静态入口返回 200；
+  - `admin.js` 与 `asset-index.css` 资源可被后端正常提供。
+- 新增 `scripts/smoke_admin_console.py`：
+  - 自动启动临时后端；
+  - 准备最小联调数据；
+  - 验证后台静态资源与关键管理接口；
+  - 作为个人开发者控制台的 HTTP 级烟雾测试入口。
+- 优化后台高频页面交互：
+  - `QuestionsPage.vue` 增加作者关键词、标签筛选，并补充 `is_verified` / `is_public` 编辑能力；
+  - `PapersPage.vue` 增加分页信息与筛选重置；
+  - `UsersPage.vue` 增加分页信息与筛选重置；
+  - `OcrRecordsPage.vue` 补齐日期范围筛选，后端同步下沉服务端过滤。
+- 新增 [docs/Admin_Console.md](docs/Admin_Console.md)，说明后台白名单配置、本地启动、构建产物和烟雾验证脚本。
+
+### 2026-07-03：个人开发者控制台立项
+
+- 明确后台首期不做学校管理、多租户和复杂角色权限，而是定位为个人开发者单人使用的“个人开发者控制台”。
+- 确认技术路线为“复用现有 FastAPI 服务 + 新增独立 Web 管理台”，不把后台管理能力继续塞进微信小程序。
+- 首期规划聚焦四类能力：系统概览、内容管理、运行监控、成本控制，优先解决目前依赖小程序页面、临时接口和手动改库的维护方式。
+- 已将该方向同步记录到 `plan.md` 与 `progress.md`，作为后续方案设计和实现排期的正式入口。
 
 ### 2026-06-29：难度标签自定义显示修复
 
@@ -58,6 +259,14 @@
   - `frontend/src/uni.scss` 作为样式变量来源
   - 小程序教师工具的交互与信息层级约定
 - 由于当前线程尚未暴露出 Figma MCP 工具，官方 `create_design_system_rules` 还不能直接运行，需在重启/刷新 MCP 后做最后验证。
+
+### 2026-07-02：Figma 工作流规则与设计系统参考
+
+- 新增 [.claude/rules/figma-design-system.md](.claude/rules/figma-design-system.md)，作为项目级 Figma 设计系统规则的正式落地位置，覆盖 Figma MCP 调用顺序、前端结构、样式令牌、产品 UI 约定、领域语义、素材、实现与验证要求。
+- 新增 [docs/Figma_MCP_Setup.md](docs/Figma_MCP_Setup.md)，说明 Figma MCP 的接入方式和排查步骤；新增 `docs/figma-refs/smart_lock_layout.png` 作为设计参考图入库示例。
+- 更新 [.mcp.json](.mcp.json)，将 `figma` 从 streamable HTTP 切换到官方 `figma-developer-mcp` stdio 模式，便于本地调用官方 Figma MCP 工具。
+- 更新 [CLAUDE.md](CLAUDE.md) 与 [AGENTS.md](AGENTS.md)，补充 Figma 工作流入口和规范化的设计系统规则引用。
+- 仍待验证：当前会话未暴露 Figma MCP 工具，`get_design_context` / `create_design_system_rules` 等仍需在 MCP 重启后实测。
 
 ### 2026-07-01：修复 vite.config.js 在 ESM 下加载 uni 插件失败
 
@@ -191,12 +400,30 @@
 | P1 | 数据库迁移治理仍需生产演练与备份记录模板 | 跟进 |
 | P1 | API 层部分业务逻辑偏厚，需要逐步抽 service | 待优化 |
 | P1 | 题目图片挂接需要继续加强用户归属校验 | 待优化 |
+| P2 | 个人开发者控制台尚缺一轮浏览器自动化烟雾验证；当前已做 HTTP 级联调，但 `agent-browser` 在本机环境受 npm cache / Chrome 接管问题影响未跑通 | 跟进 |
+| P3 | 后端 schema 仍存在 Pydantic v2 class-based `Config` deprecation 警告，当前不影响功能，但后续升级需统一改为 `ConfigDict` | 待清理 |
 | P2 | `npm run build:mp-weixin` 在 Windows 下仍受类 Unix 命令影响 | 待修复 |
 | ~~P2~~ | ~~`npm run build:mp-weixin` 当前加载 `vite.config.js` 报 `uni is not a function`,需核对 `@dcloudio/vite-plugin-uni` 导出方式/版本~~ | 已修复(2026-07-01) |
 
 ## 下一步开发计划
 
-### 1. 服务层拆分与任务化（P1）
+### 1. 个人开发者控制台（P1）
+
+目标：在已完成第一版交付的基础上，补齐浏览器层烟雾验证与细节收口。
+
+任务：
+
+- 在可用浏览器自动化环境下补一轮登录、仪表盘、题库、标签、OCR 详情烟雾测试；
+- 根据浏览器烟雾结果修补首批交互细节；
+- 视需要补充后台使用说明或部署说明。
+
+验收：
+
+- 后台登录与关键页面浏览器层烟雾流程通过；
+- 当前第一版后台可作为个人开发者日常控制台使用；
+- 常见内容维护不再需要直接操作数据库。
+
+### 2. 服务层拆分与任务化（P1）
 
 目标：降低 API 层复杂度，为 OCR、导出等长任务打基础。
 
@@ -214,7 +441,7 @@
 - 核心业务逻辑可单测；
 - 长任务失败可查询状态并重试。
 
-### 2. 数据库迁移生产演练（P1）
+### 3. 数据库迁移生产演练（P1）
 
 目标：验证生产 schema 变更流程可备份、可回滚。
 

@@ -85,10 +85,15 @@ class QuestionUpdateReq(BaseModel):
     content: Optional[str] = None
     answer: Optional[str] = None
     analysis: Optional[str] = None
-    question_type: Optional[str] = None
+    question_type: Optional[str] = Field(
+        None,
+        pattern="^(choice|fill|experiment|calculation|short_answer)$",
+    )
     difficulty: Optional[int] = Field(None, ge=1, le=MAX_DIFFICULTY_LEVEL)
     source: Optional[str] = None
     options: Optional[list[dict]] = None
+    is_public: Optional[bool] = None
+    is_verified: Optional[bool] = None
     tag_ids: Optional[list[str]] = None
     source_image_url: Optional[str] = None
     images: Optional[list[dict]] = None

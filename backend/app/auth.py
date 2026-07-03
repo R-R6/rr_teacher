@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import get_db
 from app.models import User
+from app.services.admin_console_service import is_admin_user, parse_admin_csv
 
 # 密码哈希上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -103,4 +104,16 @@ async def get_current_teacher(
     """仅允许老师角色访问"""
     if current_user.role != "teacher":
         raise HTTPException(status_code=403, detail="仅教师账号可执行此操作")
+    return current_user
+
+
+async def get_current_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """仅允许后台白名单用户访问"""
+    admin_user_ids = parse_admin_csv(settings.ADMIN_USER_IDS)
+    admin_usernames = parse_admin_csv(settings.ADMIN_USERNAMES)
+
+    if not is_admin_user(current_user, admin_user_ids, admin_usernames):
+        raise HTTPException(status_code=403, detail="当前账号没有后台访问权限")
     return current_user

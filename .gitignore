@@ -36,6 +36,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+.tmp_*
+.tmp_*/
 
 # Claude Code 本地配置（包含敏感路径）
 .claude/settings.local.json
@@ -53,6 +55,10 @@ docs/CloudRun_Env_Vars.local.md
 
 # 测试文件
 ocr-service/test_chem.jpg
+
+# 后台管理构建产物
+frontend/admin-dist/
+admin-web/dist/
 
 # 临时 skills 目录（可能重复安装）
 .agents/
