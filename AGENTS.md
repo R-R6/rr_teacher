@@ -1,437 +1,269 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file defines the canonical project rules for coding agents working in this repository.
 
-## Project Overview
+## 1. Project Snapshot
 
-高中化学教学辅助系统 (High School Chemistry Teaching Assistant) - A backend system for chemistry teachers to:
-- Scan/OCR chemistry questions from images
-- Manage question banks with LaTeX chemical formulas
-- Generate test papers (auto/manual) and export to Word
-- Support WeChat Mini Program frontend
+高中化学教学辅助系统：面向化学老师的教学辅助系统，核心链路包括：
 
-## Tech Stack
+- 拍题 / OCR 识别
+- 题库管理
+- 试卷生成与 Word 导出
+- 微信小程序前端
+- 个人开发者控制台后台
 
-- **Backend**: Python FastAPI (async) + SQLAlchemy 2.0 + SQLite (dev) / MySQL 8.0 (prod)
-- **OCR**: Pix2Text (中文化学公式识别)
-- **Document**: python-docx + LaTeX → Unicode 转换
-- **Storage**: 本地文件 (dev) / 腾讯云 COS (prod)
-- **Auth**: JWT (access + refresh tokens)
-- **Cache**: Redis (planned)
+主要技术栈：
 
-## Key Commands
+- Backend: FastAPI + SQLAlchemy 2.0 async
+- Database: SQLite (dev) / MySQL 8.0 (prod)
+- OCR: Pix2Text（HTTP 服务优先，本地库兜底）
+- Document: python-docx
+- Storage: 本地文件 / 腾讯云 COS
+- Auth: JWT access + refresh token
 
-### Running the Application
+## 2. Karpathy-Style Working Rules
+
+These rules are adapted from `multica-ai/andrej-karpathy-skills` and are required for this project.
+
+Tradeoff note:
+
+- These rules intentionally bias toward caution over speed.
+- 对于明显的一行修复、纯文案小改这类极小任务，可以使用判断，不必把流程做得过重。
+- 目标不是拖慢简单任务，而是减少非简单任务中的错误假设、过度设计和无关改动。
+
+### Think Before Coding
+
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+在开始实现前：
+
+- 显式写出你的关键假设；如果不确定，就先问，而不是默默猜。
+- 如果一个请求有多种合理解释，先列出来，不要静默选一种。
+- 如果存在更简单、更安全或更贴合现状的路径，直接指出，并说明原因。
+- 如果你对上下文有困惑，不要硬着头皮继续；明确说出哪里不清楚，再继续。
+
+这个原则主要是为了解决：
+
+- 代理替用户做了错误假设
+- 明明有歧义却不澄清
+- 没有提前说出 tradeoff
+- 应该 push back 时却默认顺着做
+
+### Simplicity First
+
+Minimum code that solves the problem. Nothing speculative.
+
+实现时：
+
+- 不添加用户没要求的功能。
+- 不为单一调用点引入额外抽象。
+- 不为了“以后可能有用”就加配置、开关或泛化接口。
+- 不为实际上不可能发生的情况写一大段防御性逻辑。
+- 如果你写了 200 行，而 50 行就够，应该重写得更小。
+
+自检问题：
+
+- 一个资深工程师看到这段实现，会不会说“这太复杂了”？
+- 这段代码是不是在解决当前问题，而不是顺带搭未来框架？
+
+这个原则主要是为了解决：
+
+- 过度工程
+- 抽象膨胀
+- 接口设计过宽
+- 代码量远超问题规模
+
+### Surgical Changes
+
+Touch only what you must. Clean up only your own mess.
+
+在已有代码上工作时：
+
+- 不要顺手“优化”邻近代码、注释、格式或命名。
+- 不要重构并未损坏的无关模块。
+- 要匹配仓库当前风格，即使你个人会有不同写法。
+- 如果你发现无关的死代码、历史问题或风格问题，先提出来，不要顺手一起删改。
+
+当你的改动带来“自己制造的冗余”时：
+
+- 删除因为本次改动而变成未使用的 import、变量、函数或分支。
+- 不要清理你没制造出来的历史冗余，除非用户明确要求。
+
+自检问题：
+
+- 每一行变更能不能直接追溯到当前任务？
+- 这份 diff 里有没有“反正顺手也改了”的内容？
+
+这个原则主要是为了解决：
+
+- 无关改动污染 diff
+- 改了自己并不真正理解的代码
+- 顺手重构导致额外回归风险
+
+### Goal-Driven Execution
+
+Define success criteria. Loop until verified.
+
+做任务时，不要只执行动作，要先把任务转成可验证目标。
+
+例如：
+
+- “加校验” 应转成 “先定义非法输入，再验证这些输入被正确拦截”
+- “修 bug” 应转成 “先复现 bug，再验证复现路径不再失败”
+- “重构 X” 应转成 “确保重构前后行为一致，并有验证手段”
+
+多步骤任务建议显式写成：
+
+1. [步骤] → verify: [验证方式]
+2. [步骤] → verify: [验证方式]
+3. [步骤] → verify: [验证方式]
+
+执行要求：
+
+- 先定义成功标准，再开始大改。
+- Bug 在条件允许时先复现，再修复。
+- 完成标准必须是“结果已验证”，不是“实现看起来写完了”。
+- 优先使用测试、回归脚本、接口调用或聚焦检查，而不是凭感觉判断。
+
+这个原则主要是为了解决：
+
+- 只完成了实现，没有完成验证
+- 结果不可复核
+- 没有闭环，导致同类问题重复出现
+
+## 3. Non-Negotiable Project Rules
+
+### Chemical Formula Rules
+
+- 题目内容中的化学式统一以 LaTeX 形式存储。
+- Word 导出时，简单上下标转 Unicode，复杂公式允许保留为标记。
+
+### OCR Rules
+
+- 主 OCR 路径是 Pix2Text HTTP 服务。
+- 本地 Pix2Text 仅作为开发期兜底。
+- OCR 结果页必须方便人工复核、修正、保存。
+
+### Data and Auth Rules
+
+- 开发环境默认 SQLite：`backend/chem_teacher.db`
+- 生产环境默认 MySQL，由 `.env` 中 `DB_TYPE=mysql` 和 `DB_PASSWORD` 控制。
+- 管理后台访问通过 `ADMIN_USER_IDS` / `ADMIN_USERNAMES` 白名单控制。
+- 现有用户角色不扩展出复杂 `admin` 角色体系。
+
+### Storage Rules
+
+- 未配置 COS 时，自动降级为本地文件存储。
+- 本地上传目录为 `backend/uploads/`。
+
+### API Rules
+
+新增 API 时遵守：
+
+1. 先在 `app/schemas.py` 定义请求/响应模型。
+2. 在对应 `app/api/*.py` 文件中补路由。
+3. 使用 `get_current_user` / `get_current_teacher` / `get_current_admin` 做权限控制。
+4. 返回统一 `ApiResp`。
+5. 新增 API 文件时，在 `app/main.py` 注册路由。
+
+### Async Session Rules
+
+- 需要新 ID 时使用 `await db.flush()`。
+- 请求结束后由 `get_db` 自动 commit / rollback。
+- 避免在循环里触发懒加载；优先手工拼响应。
+
+## 4. Key Commands
+
+### Backend
 
 ```bash
-# Install dependencies
 cd backend
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-# Run development server (仅本机访问)
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-# API 文档
+API docs:
+
+```text
 http://127.0.0.1:8000/docs
 ```
 
-### Docker Compose (生产部署)
+### Docker
 
 ```bash
 docker compose up -d
 ```
 
-### Initialize Default Tags
+### Seed Default Tags
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/tags/seed
 ```
 
-## Architecture
+### Admin Console
 
-```
-backend/app/
-├── main.py              # FastAPI 入口，注册路由 + 安全中间件
-├── config.py            # Settings via pydantic-settings (.env)
-├── database.py          # Async SQLAlchemy engine & session (SQLite/MySQL)
-├── models.py            # SQLAlchemy ORM models (User, Question, Paper, etc.)
-├── schemas.py           # Pydantic request/response schemas
-├── auth.py              # JWT authentication utilities
-├── api/
-│   ├── auth.py          # Login/register/wechat-login endpoints
-│   ├── questions.py     # Question CRUD + search/filter
-│   ├── ocr.py           # Image upload → Pix2Text recognition
-│   ├── papers.py        # Manual/auto test paper generation
-│   ├── tags.py          # Tag tree management (book/knowledge/type/difficulty)
-│   └── export.py        # Export paper/questions to Word (.docx)
-└── services/
-    ├── ocr_engine.py    # Pix2Text wrapper (HTTP service + local fallback)
-    ├── word_generator.py  # LaTeX → Word document generation
-    └── cos_uploader.py    # 本地存储 (dev) / Tencent COS (prod)
-```
-
-## Security Hardening
-
-**开发环境**默认已加固，所有安全配置通过 `.env` 控制：
-
-| 配置项 | 开发环境 | 生产环境 | 说明 |
-|--------|----------|----------|------|
-| 监听地址 | `127.0.0.1` | `0.0.0.0` (nginx代理) | 限制访问来源 |
-| `SWAGGER_ENABLED` | `true` | `false` | API 文档开关 |
-| `CORS_ORIGINS` | localhost 域名 | 你的域名 | 防止跨域攻击 |
-| `RATE_LIMIT_PER_MINUTE` | `0` (不限) | `120` | 全局速率限制 |
-| `LOGIN_RATE_LIMIT` | `10` | `5` | 登录暴力破解防护 |
-| `JWT_SECRET_KEY` | 随机48位字符串 | 随机48位字符串 | 必须在 .env 中配置 |
-
-安全响应头已自动添加: `X-Content-Type-Options`, `X-Frame-Options`
-
-## Critical Implementation Details
-
-### Chemical Formula Handling
-
-1. **Storage**: All chemical formulas stored in LaTeX format (`$H_2SO_4$`, `$\rightarrow$`)
-2. **Display**: Converted to Unicode subscripts/superscripts for Word output
-   - `H_2SO_4` → `H₂SO₄`
-   - `Fe^{2+}` → `Fe²⁺`
-3. **Word Export**: Simple formulas use Unicode, complex ones kept as `[formula]` markers
-
-### OCR Engine Strategy
-
-The system uses a dual-engine approach:
-1. **Primary**: Pix2Text HTTP microservice (port 8001)
-2. **Fallback**: Local Pix2Text library (import pix2text)
-
-### Authentication Flow
-
-- `/api/auth/login` returns access_token + refresh_token
-- Protected endpoints use `get_current_user` dependency
-- Teacher-only endpoints use `get_current_teacher` dependency
-- WeChat Mini Program uses `/api/auth/wechat-login` with code exchange
-
-### Database
-
-- **开发环境**: SQLite (`backend/chem_teacher.db`)，自动建表，无需手动迁移
-- **生产环境**: MySQL 8.0，需要配置 `DB_TYPE=mysql` + `DB_PASSWORD`
-- 切换数据库只需修改 `.env` 中 `DB_TYPE`，无需改代码
-
-### COS 存储降级
-
-- 未配置 `COS_SECRET_ID` 时自动降级为本地文件存储
-- 本地文件保存在 `backend/uploads/` 目录
-- 生产环境配置 COS 后自动上传到腾讯云
-
-## MCP 工具 & Skills
-
-项目已配置以下 MCP 工具用于微信小程序开发（见 `.mcp.json`）：
-
-| 工具 | 包名 | 功能 | 状态 |
-|------|------|------|------|
-| **uniapp-wechat** | `uniapp-wechat-mcp` | uni-app 小程序开发：构建、预览、截图、自动化测试 | ✅ 已配置 |
-| **weixin-devtools** | `weixin-devtools-mcp` | 微信开发者工具自动化：31个工具，含断言/网络监控/调试 | ✅ 已配置 |
-
-## Figma 工作流
-
-项目已在本机安装以下 OpenAI 官方技能：
-
-- `figma-use`
-- `figma-generate-design`
-- `figma-create-design-system-rules`
-- `figma-implement-design`
-
-用途分工：
-
-- `figma-use`：Figma 基础操作能力
-- `figma-generate-design`：生成或更新产品页面设计
-- `figma-create-design-system-rules`：为本项目生成设计系统规则
-- `figma-implement-design`：将 Figma 设计落成代码
-
-当前项目的 `.mcp.json` 尚未配置 Figma MCP server，因此这套工作流已具备技能层能力，但暂时还不能直接从 Figma 拉取节点上下文、截图和资产。
-
-详细说明见：
-
-- [docs/Figma_Workflow.md](docs/Figma_Workflow.md)
-
-### Figma 设计系统规则（项目草案）
-
-以下规则用于后续 `figma-create-design-system-rules` / `figma-implement-design` 落地，先作为本项目的默认约定：
-
-#### Figma MCP Integration Rules
-
-1. 必须先获取 Figma 设计上下文，再开始改代码：
-   - `get_design_context`
-   - `get_screenshot`
-2. 如果返回过大或节点复杂，先 `get_metadata` 再分节点拉取上下文。
-3. 先复用项目现有页面模式和样式变量，不允许直接把 Figma 输出的 React/Tailwind 片段原样塞进 uni-app 页面。
-4. 设计稿实现目标是视觉一致，但要优先遵守本项目已有的交互模式、微信小程序约束和现有页面结构。
-
-#### Frontend 组织规则
-
-- 页面文件统一放在 `frontend/src/pages/`
-- 工具层放在 `frontend/src/utils/`
-- 若新增复用型 UI 组件，优先放在 `frontend/src/components/`（当前项目尚未系统化组件目录，新增前先确认是否真的需要抽离）
-- 页面优先沿用现有单文件 Vue (`.vue`) 结构，不引入新的前端架构层
-
-#### Styling Rules
-
-- 使用项目现有的 SCSS 变量体系，来源：
-  - `frontend/src/uni.scss`
-- 颜色、圆角、阴影、题型色、难度色优先复用已有变量，不新增随意的硬编码十六进制颜色
-- 页面整体风格保持“小程序教师工具”取向：
-  - 清晰
-  - 高信息密度
-  - 低学习成本
-  - 强可点击状态
-- 表单控件、卡片、底部操作条继续遵守当前项目常见视觉模式，不额外引入新设计系统库
-
-#### Component / Interaction Rules
-
-- `题型`、`难度` 视为结构属性，优先使用显式选择控件
-- `教材版本`、`知识点` 视为分类标签，优先使用标签/选择器而不是与结构属性混用
-- 所有高频操作必须是显式可见操作，避免依赖长按、隐藏菜单或只靠占位文案提示
-- 小程序触控区域保持足够大，按钮和标签操作区要适合教师在手机上快速点击
-
-#### Asset Handling
-
-- 如果 Figma MCP 返回本地资产地址，直接使用，不替换成占位图
-- 不额外引入新的图标包来替代 Figma 资源，除非项目现有资源无法满足且用户明确同意
-- 若设计稿涉及新增静态资源，优先放在 `frontend/src/static/`
-
-#### Validation Rules
-
-- 每次 Figma 到代码的实现都要至少核对：
-  - 页面层级
-  - 间距
-  - 颜色
-  - 字体大小
-  - 小程序端点击反馈
-- 能用现有前端测试覆盖的，优先补测试
-- 重大页面调整后，至少重新编译小程序并检查目标页面
-
-### 前置条件
-
-1. **安装微信开发者工具**：https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html
-2. **开启服务端口**：开发者工具 → 设置 → 安全设置 → 服务端口 → 开启
-3. **配置 CLI 路径**：编辑 `.mcp.json` 中 `WECHAT_DEVTOOLS_CLI` 为实际安装路径
-
-### uniapp-wechat-mcp 工具用法
-
-详见 `.Codex/skills/wechat-devtools/` 下的技能文档。关键工具：
-
-```
-# IDE 管理
-wechat_ide(action="status")         # 检查连接状态
-wechat_ide(action="open")           # 打开项目
-wechat_ide(action="is_login")       # 检查登录状态
-
-# 构建
-wechat_build(action="compile")      # 编译小程序
-wechat_build(action="preview")      # 生成预览二维码
-wechat_build(action="upload")       # 上传版本
-
-# 自动化
-wechat_automator(action="start")    # 启动自动化引擎
-wechat_screenshot()                 # 截图
-wechat_navigate(page="/pages/xxx")  # 页面跳转
-wechat_tap(ref="xxx")              # 点击元素
-wechat_inspector()                  # 检查页面元素
-wechat_automator(action="page_data") # 获取页面数据
-
-# 源码操作
-wechat_file(action="project_info")  # 获取项目信息
-```
-
-## Database Models
-
-| Model | Purpose |
-|-------|---------|
-| `User` | Teachers and students, supports WeChat openid |
-| `Question` | Chemistry questions with LaTeX content, options (JSON), difficulty |
-| `QuestionTag` | Hierarchical tags: book/knowledge/type/difficulty |
-| `QuestionTagRel` | Question-tag many-to-many relationship |
-| `Paper` | Test paper container with auto/manual generation |
-| `PaperItem` | Paper-question relationship with scores |
-| `OcrRecord` | OCR recognition history with correction tracking |
-| `MistakeBook` | Student's wrong answer tracking |
-| `PracticeRecord` | Student practice history |
-
-## Configuration
-
-Environment variables in `.env` (see `.env.example` for full list):
+Build admin frontend:
 
 ```bash
-# 数据库
-DB_TYPE=sqlite            # sqlite 或 mysql
-DB_PASSWORD=your_password  # MySQL 时需要
-
-# JWT (必须修改为随机密钥)
-JWT_SECRET_KEY=your_random_secret_key
-
-# 安全
-SWAGGER_ENABLED=true      # 生产环境改为 false
-CORS_ORIGINS=http://localhost:3000
-RATE_LIMIT_PER_MINUTE=0   # 生产环境改为 120
-LOGIN_RATE_LIMIT=10       # 生产环境改为 5
+cd admin-web
+node scripts/build.mjs
 ```
 
-## Common Development Patterns
+Run HTTP smoke test:
 
-### Adding a New API Endpoint
-
-1. Create schema in `app/schemas.py` (request/response models)
-2. Add endpoint in appropriate `app/api/*.py` file
-3. Use `get_current_user` or `get_current_teacher` for auth
-4. Return `ApiResp` wrapper for consistent response format
-5. 在 `main.py` 中注册路由 (如果新建了 API 文件)
-
-### Working with Chemical Formulas
-
-```python
-# LaTeX format for storage
-content = "$H_2SO_4$ + $NaOH$ → $Na_2SO_4$ + $H_2O$"
-
-# Unicode conversion for Word output (handled by word_generator.py)
-from app.services.word_generator import _parse_latex_subscript_superscript
-display_text = _parse_latex_subscript_superscript("H_2SO_4")  # → "H₂SO₄"
+```bash
+python scripts/smoke_admin_console.py
 ```
 
-### Database Queries with Async SQLAlchemy
+If the default Python is not the backend runtime:
 
-```python
-from sqlalchemy import select
-from app.database import get_db
-
-async def get_questions(db: AsyncSession):
-    stmt = select(Question).where(Question.author_id == user_id)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+```bash
+set ADMIN_SMOKE_BACKEND_PYTHON=C:/Users/admin/scoop/apps/python/current/python.exe
+python scripts/smoke_admin_console.py
 ```
 
-### Async Session 注意事项
+### Useful Tests
 
-- 使用 `await db.flush()` 在需要获取新生成 ID 但还未提交时
-- `get_db` 依赖会在请求结束时自动 commit/rollback
-- 避免在循环中触发懒加载，手动构建响应字典而非使用 `model_validate`
+```bash
+C:/Users/admin/scoop/apps/python/current/python.exe -m unittest discover -s backend/tests -v
+node --test admin-web/tests/*.test.mjs
+```
 
-## Development Workflow
+## 5. Frontend / Tooling Notes
 
-### 文档更新规则
+### WeChat Mini Program
 
-每次完成**重大功能开发或版本迭代**后，必须更新 `progress.md`：
+- 项目已配置 `uniapp-wechat` 和 `weixin-devtools` MCP 工具，见 `.mcp.json`。
+- 页面沿用现有单文件 Vue 结构。
 
-1. 更新"当前状态"表格的完成度百分比
-2. 将新完成的任务状态从 `❌` 改为 `✅`
-3. 添加新发现的已知问题
-4. 更新"下一步"计划
-5. 在"提交记录"表格追加本次 commit
+### Figma
 
-判断标准：完成一个完整功能模块（如新增页面、新增API、修复重要bug）即为"重大迭代"，需要更新文档。小修小补（改个样式、修个文案）不需要。
+- Figma 工作流说明见 `docs/Figma_Workflow.md`
+- Claude 侧设计规则见 `.claude/rules/figma-design-system.md`
+- 如果当前会话没有暴露 Figma MCP 工具，不要假装已经拉到设计上下文。
 
-### 项目文档结构
+## 6. Documentation Rules
 
-| 文件 | 用途 | 更新频率 |
-|------|------|----------|
-| `AGENTS.md` | Codex 项目指引（本文件） | 架构变更时 |
-| `plan.md` | 项目规划规范（技术选型、Roadmap） | 很少改 |
-| `progress.md` | 开发进度追踪 | 每次重大迭代 |
+完成重大功能、重要修复或完整迭代后，更新 `progress.md`：
 
-### Git 提交规则
+- 更新当前状态
+- 记录本轮完成项
+- 补充已知问题
+- 更新下一步计划
 
-**严格禁止自动执行 git commit 和 git push 命令**
+涉及架构、路线或阶段计划调整时，更新 `plan.md`。
 
-1. **禁止自动提交** — 完成代码修改后，不要自动运行 `git commit` 或 `git push` 命令
-2. **用户主动要求** — 只有当用户明确说"提交代码"、"commit"、"推送到远程"等要求时，才执行 `git commit` 和 `git push`
-3. **commit message 规范** — 用 `feat:` / `fix:` / `docs:` / `ui:` 前缀，中文描述，简洁明了
-4. **commit 的内容** — 要包括当前代码更改区和暂存区的所有修改要点
+## 7. Git Rules
 
-### 文档更新规则
+- 未经用户明确要求，不要自动执行 `git commit` 或 `git push`。
+- 只有用户明确要求“提交 / commit / 推送”时才能执行。
+- 提交信息使用 `feat:` / `fix:` / `docs:` / `ui:` 前缀，中文描述。
+- 提交前确保代码与文档状态一致。
 
-**每次提交代码时，同步更新项目进度文档**
+## 8. Canonical References
 
-1. **更新 `progress.md`** — 添加新的提交记录到"提交记录"表格，更新"当前状态"和"已知问题"
-2. **重大功能变更时更新 `plan.md`** — 如新增技术方案、架构调整
-3. **README.md 保持最新** — 功能特性列表、快速开始步骤等
-4. **提交前检查** — 确保文档与代码状态一致
-
-## Known Issues
-
-1. **OCR 真机验证** — PaddleOCR v2.9 已本地测试通过（置信度99.6%），云端部署（v17）待真机验证
-2. **COS 私有存储桶** — 图片预览需要签名 URL，当前前端直接访问会被拒绝
-3. **试卷创建后无法编辑** — papers.py 缺少 PUT 端点
-4. **标签删除无级联处理** — 删除标签时 question_tag_rel 中可能有孤立记录
-5. **学生端入口已隐藏** — 首页无"开始刷题"按钮，代码保留待启用
-
-## Canonical Figma Design System Rules
-
-These rules supersede the earlier Figma draft section when implementing, refining, or reviewing Figma-driven UI in this repository.
-
-### Required Figma MCP Flow
-
-1. Run `create_design_system_rules(clientLanguages="javascript", clientFrameworks="vue")` when refreshing these rules.
-2. For implementation work, run `get_design_context` for the exact Figma node before editing code.
-3. If the response is too large or truncated, run `get_metadata`, identify the exact child node, then fetch that child with `get_design_context`.
-4. Run `get_screenshot` for the exact node or variant and keep it as the visual reference.
-5. Only start implementation after both structured context and screenshot are available.
-6. Download or reuse any Figma-provided assets before replacing them with local alternatives.
-7. Validate the finished mini program page against the screenshot for hierarchy, spacing, color, typography, and interaction states.
-
-If Figma MCP tools are not exposed in the current agent session, do not pretend the visual context was fetched. State the limitation, use the existing project rules below, and continue only with tasks that do not require direct Figma node inspection.
-
-### Project Structure
-
-- Pages live in `frontend/src/pages/`.
-- Shared frontend utilities live in `frontend/src/utils/`.
-- Static assets live in `frontend/src/static/`.
-- Add reusable UI components under `frontend/src/components/` only when there are at least two real call sites or a clear near-term reuse path.
-- Preserve the current single-file Vue page style: `<template>`, `<script>`, and `<style lang="scss" scoped>`.
-- Use `uni.*` APIs and existing utility wrappers instead of adding browser-only dependencies.
-- API calls should go through `frontend/src/utils/api.js` or a closely related existing utility.
-
-### Styling Rules
-
-- Reuse SCSS tokens from `frontend/src/uni.scss` for core colors, semantic colors, radius, shadows, difficulty colors, and question-type colors.
-- Prefer existing page-local visual patterns before adding new tokens.
-- Avoid new arbitrary hex colors. If a new color is truly needed, add a named token to `frontend/src/uni.scss` and use it consistently.
-- Use `rpx` for mini program layout sizing unless the surrounding code uses another unit for a specific reason.
-- Keep touch targets large enough for phone use; primary buttons, chips, and list rows should be easy to tap quickly.
-- Preserve existing patterns for navigation bars, search bars, filter chips, cards, modals, empty states, loading states, and bottom action bars.
-- Avoid adding a third-party UI library or icon package unless the user explicitly approves it.
-
-### Product UI Conventions
-
-- The UI is a teacher productivity tool, not a landing page.
-- Prioritize scanability, dense but readable information, explicit actions, and low learning cost.
-- Keep high-frequency actions visible. Do not rely on hidden gestures, long press, or placeholder-only instructions for core workflows.
-- Favor calm, utilitarian layouts over decorative hero sections, oversized cards, or marketing-style composition.
-- Chemistry content may include LaTeX-like formulas, subscripts, superscripts, OCR text, and attached figures; layouts must not clip or obscure long question content.
-
-### Domain Semantics
-
-- `question_type` and `difficulty` are structural attributes; use explicit segmented, chip, picker, or modal selection controls.
-- `book`, `knowledge`, and similar taxonomy values are classification tags; do not mix them into the same chooser as structural attributes.
-- `source` is freeform reference text unless a managed source taxonomy is intentionally added.
-- Question type and difficulty colors should come from `QUESTION_TYPES`, tag-derived configs, or the SCSS token layer.
-- OCR result pages should make review, correction, original-image preview, attached figures, and save actions obvious.
-
-### Assets
-
-- If Figma MCP returns a localhost or file asset URL, use that asset directly or download it into the project as instructed by the MCP output.
-- Store approved new assets under `frontend/src/static/`.
-- Do not replace real Figma assets with placeholders.
-- Do not introduce a new icon package just to mimic Figma icons. Use existing assets, text symbols already used by the project, or Figma-provided assets.
-
-### Implementation Rules
-
-- Translate Figma React/Tailwind examples into this project's uni-app / Vue conventions.
-- Do not paste Tailwind classes into Vue files unless Tailwind already exists in the project and is configured for the target platform.
-- Keep edits scoped to the target page or component and the smallest necessary supporting utilities.
-- Reuse existing helpers such as `frontend/src/utils/util.js`, `frontend/src/utils/type-config.js`, `frontend/src/utils/difficulty.js`, and `frontend/src/utils/time.js` when applicable.
-- For display-mapping logic, prefer utility functions over duplicating maps inside pages.
-- Preserve safe-area handling for fixed bottom actions.
-- Avoid broad refactors while implementing a Figma screen.
-
-### Validation
-
-- For any significant UI implementation, compile the mini program or run the relevant existing build command.
-- When WeChat DevTools automation is available, verify the target page visually and check tap behavior.
-- At minimum, inspect the changed Vue file for template/style consistency and obvious text overflow or fixed-position overlap.
-- Add focused tests only when the change affects shared display logic, data mapping, or nontrivial state transitions.
+- 项目规划：`plan.md`
+- 开发进度：`progress.md`
+- 后台说明：`docs/Admin_Console.md`
+- Figma 工作流：`docs/Figma_Workflow.md`
+- Figma 设计规则：`.claude/rules/figma-design-system.md`
