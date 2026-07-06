@@ -1,6 +1,6 @@
 # 云托管环境变量模板
 
-最后更新：2026-06-25
+最后更新：2026-07-04
 
 用途：
 - 腾讯云 CloudBase Run / 云托管更新镜像后
@@ -10,7 +10,7 @@
 当前推荐镜像：
 
 ```text
-ccr.ccs.tencentyun.com/chem-teacher/backend:v28
+ccr.ccs.tencentyun.com/chem-teacher/backend:v30
 ```
 
 ## 生产部署环境变量检查清单（必填）
@@ -27,6 +27,7 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v28
 | `CORS_ORIGINS` | 不能是 `*`（小程序填 `https://servicewechat.com`） | RuntimeError，启动崩溃 |
 | `DB_PASSWORD` | MySQL 时必填非空 | RuntimeError，启动崩溃 |
 | `TZ` | `Asia/Shanghai`（CloudRun 容器默认 UTC） | 不设则 `datetime.now()` 返回 UTC，前端时间显示偏移 8 小时 |
+| `ADMIN_USERNAMES` | 后台操作员用户名，逗号分隔（如 `teacher1`） | 未配置则无法访问 `/api/admin/*`；不是小程序用户监控名单 |
 
 生成 32+ 位随机密钥：
 
@@ -34,6 +35,7 @@ ccr.ccs.tencentyun.com/chem-teacher/backend:v28
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+> v30 起镜像内打包 `/admin-console/` 静态页；构建前需 `node admin-web/scripts/build.mjs`（见 `scripts/build_backend_image.ps1`）。
 > v28 起，容器入口脚本会在 uvicorn 启动前对 MySQL 执行 `alembic upgrade head`（`DB_TYPE=mysql` 时），自动建表/升 schema。若 CloudRun 与 MySQL 网络不通，迁移会失败但不阻塞启动——此时 `/health` 仍可达，但实际 API 调用会报 DB 错误，需确认 CloudRun 与 CynosDB 在同一 VPC。
 
 模板：
@@ -53,6 +55,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
   "SECRET_KEY": "<your-32-plus-char-secret-key>",
   "JWT_SECRET_KEY": "<your-jwt-secret>",
   "CORS_ORIGINS": "https://servicewechat.com",
+  "ADMIN_USERNAMES": "teacher1",
   "RATE_LIMIT_PER_MINUTE": "120",
   "LOGIN_RATE_LIMIT": "5",
   "UPLOAD_DIR": "./uploads",

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         encoded_password = quote_plus(self.DB_PASSWORD)
         return (
             f"mysql+aiomysql://{self.DB_USER}:{encoded_password}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
         )
 
     @property
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         encoded_password = quote_plus(self.DB_PASSWORD)
         return (
             f"mysql+pymysql://{self.DB_USER}:{encoded_password}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
         )
 
     REDIS_URL: str = "redis://127.0.0.1:6379/0"

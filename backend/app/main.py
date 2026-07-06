@@ -19,6 +19,20 @@ from app.api import upload as upload_api
 logger = logging.getLogger(__name__)
 
 
+def _resolve_admin_console_dir() -> str | None:
+    """Resolve admin console static directory for repo dev and container layouts."""
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = (
+        os.path.normpath(os.path.join(app_dir, "..", "..", "frontend", "admin-dist")),
+        os.path.normpath(os.path.join(app_dir, "..", "frontend", "admin-dist")),
+        "/frontend/admin-dist",
+    )
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return None
+
+
 # ─── 简易速率限制 (内存实现) ───
 _rate_store: dict[str, list[float]] = defaultdict(list)
 _login_rate_store: dict[str, list[float]] = defaultdict(list)
@@ -167,10 +181,8 @@ uploads_dir = os.path.normpath(uploads_dir)
 os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
-admin_console_dir = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend", "admin-dist")
-)
-if os.path.isdir(admin_console_dir):
+admin_console_dir = _resolve_admin_console_dir()
+if admin_console_dir:
     app.mount("/admin-console", StaticFiles(directory=admin_console_dir, html=True), name="admin-console")
 
 

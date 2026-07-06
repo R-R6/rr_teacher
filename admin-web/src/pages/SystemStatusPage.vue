@@ -13,12 +13,18 @@
         </div>
         <div class="mini-card">
           <p class="field-label">数据库</p>
-          <strong>{{ status.database?.type }}</strong>
+          <div class="status-value-stack">
+            <strong>{{ status.database?.type }}</strong>
+            <small>{{ status.database?.name || '—' }}</small>
+            <small>{{ status.database?.host_masked || '—' }}</small>
+          </div>
         </div>
         <div class="mini-card">
           <p class="field-label">存储模式</p>
-          <strong>{{ status.storage?.mode }}</strong>
-          <small>{{ status.storage?.bucket || '本地文件' }}</small>
+          <div class="status-value-stack">
+            <strong>{{ status.storage?.mode }}</strong>
+            <small>{{ status.storage?.bucket || '本地文件' }}</small>
+          </div>
         </div>
       </div>
     </PanelCard>
@@ -31,11 +37,11 @@
             <span>{{ status.ocr?.default_engine }}</span>
           </div>
           <div class="stat-row">
-            <strong>Debug</strong>
+            <strong>调试模式</strong>
             <span>{{ status.runtime?.debug }}</span>
           </div>
           <div class="stat-row">
-            <strong>Swagger</strong>
+            <strong>接口文档</strong>
             <span>{{ status.runtime?.swagger_enabled }}</span>
           </div>
           <div class="stat-row">

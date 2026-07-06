@@ -1,7 +1,8 @@
-version: "3.8"
+# 推荐本地教学联调使用 backend/docker-compose.yml（含 init.sql 种子数据与 admin-console）。
+# 本文件提供 MySQL + Redis + Backend 最小栈。
+# 构建 backend 镜像前请先执行: node admin-web/scripts/build.mjs
 
 services:
-  # ── MySQL 数据库 ──
   mysql:
     image: mysql:8.0
     container_name: chem_mysql
@@ -14,14 +15,17 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --init-connect=SET NAMES utf8mb4
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  # ── Redis 缓存 ──
   redis:
     image: redis:7-alpine
     container_name: chem_redis
@@ -31,25 +35,29 @@ services:
     volumes:
       - redis_data:/data
 
-  # ── FastAPI 后端 ──
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: chem_backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8000:8080"
     environment:
+      - DB_TYPE=mysql
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=${DB_PASSWORD:-root123}
       - DB_NAME=${DB_NAME:-chem_teacher}
+      - DEBUG=true
+      - SWAGGER_ENABLED=true
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-change-this}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this}
+      - SECRET_KEY=${SECRET_KEY:-docker_test_secret_key_change_in_production_2024}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-docker_test_key_change_in_production_2024}
+      - ADMIN_USERNAMES=${ADMIN_USERNAMES:-teacher1}
     volumes:
+      - ./frontend/admin-dist:/frontend/admin-dist:ro
       - uploads_data:/app/uploads
       - exports_data:/app/exports
     depends_on:

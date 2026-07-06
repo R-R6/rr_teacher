@@ -9,6 +9,18 @@ if str(BACKEND_DIR) not in sys.path:
 
 
 class AdminConsoleStaticTests(unittest.TestCase):
+    def test_resolve_admin_console_dir_prefers_existing_repo_path(self):
+        from app.main import _resolve_admin_console_dir
+
+        admin_dist = BACKEND_DIR.parent / "frontend" / "admin-dist"
+        if not admin_dist.is_dir():
+            self.skipTest("frontend/admin-dist not built")
+
+        resolved = _resolve_admin_console_dir()
+        self.assertIsNotNone(resolved)
+        self.assertTrue(Path(resolved).is_dir())
+        self.assertTrue((Path(resolved) / "index.html").is_file())
+
     def test_admin_console_static_entry_is_served(self):
         from fastapi.testclient import TestClient
         from app.main import app

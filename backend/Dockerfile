@@ -1,10 +1,15 @@
+#
+# Build from repository root (admin console must be built first):
+#   node admin-web/scripts/build.mjs
+#   docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:v29 .
+#
+# admin-dist is copied to /frontend/admin-dist for app.main mount resolution.
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
 # System dependencies for OCR and native Python packages.
-# tzdata + TZ=Asia/Shanghai: CloudRun 容器默认 UTC，会导致 datetime.now() 返回 UTC，
-# 前端时间显示偏移 8 小时。安装 tzdata 并设北京时间，使 datetime.now() 返回北京时间。
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     -o Acquire::Retries=3 \
     gcc \
@@ -19,18 +24,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     && echo "Asia/Shanghai" > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Application code
-COPY . .
+COPY backend/ .
+COPY frontend/admin-dist /frontend/admin-dist
 
-# Runtime directories
+RUN test -f /frontend/admin-dist/index.html
+
 RUN mkdir -p uploads exports
 
-# 入口脚本：启动前对 MySQL 执行 Alembic 迁移，避免表缺失导致 lifespan 崩溃
-COPY entrypoint.sh /entrypoint.sh
+COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080

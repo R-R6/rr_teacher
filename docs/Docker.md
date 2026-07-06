@@ -247,9 +247,20 @@ backend/
 
 ### 6.1 启动
 
+推荐（含 init.sql 种子数据、admin-console）：
+
 ```bash
 cd F:\project\rr_teacher\backend
-docker compose up -d
+node ../admin-web/scripts/build.mjs
+docker compose up -d --build
+```
+
+仓库根目录也提供 MySQL + Redis + Backend 最小栈（需先编译 admin-console）：
+
+```bash
+cd F:\project\rr_teacher
+node admin-web/scripts/build.mjs
+docker compose up -d --build
 ```
 
 首次启动需要：
@@ -382,9 +393,13 @@ docker login ccr.ccs.tencentyun.com
 # 用户名: 你的腾讯云账号ID
 # 密码: TCR 个人版密码
 
-# 构建镜像
-cd F:\project\rr_teacher\backend
-docker build -t ccr.ccs.tencentyun.com/chem-teacher/backend:v1 .
+# 构建镜像（需先在仓库根目录编译 admin-console）
+cd F:\project\rr_teacher
+node admin-web/scripts/build.mjs
+docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:v1 .
+
+# 或使用一键脚本（Windows）
+powershell -File scripts/build_backend_image.ps1 ccr.ccs.tencentyun.com/chem-teacher/backend:v1
 
 # 推送
 docker push ccr.ccs.tencentyun.com/chem-teacher/backend:v1
@@ -392,18 +407,25 @@ docker push ccr.ccs.tencentyun.com/chem-teacher/backend:v1
 
 ### 8.3 镜像版本管理
 
+在仓库根目录执行（先编译 admin-console，再构建镜像）：
+
 ```bash
-# 开发版
-docker build -t ccr.ccs.tencentyun.com/chem-teacher/backend:dev .
+cd F:\project\rr_teacher
+node admin-web/scripts/build.mjs
+docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:dev .
 docker push ccr.ccs.tencentyun.com/chem-teacher/backend:dev
 
-# 正式版
-docker build -t ccr.ccs.tencentyun.com/chem-teacher/backend:v1 .
+docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:v1 .
 docker push ccr.ccs.tencentyun.com/chem-teacher/backend:v1
 
-# 最新版
-docker build -t ccr.ccs.tencentyun.com/chem-teacher/backend:latest .
+docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:latest .
 docker push ccr.ccs.tencentyun.com/chem-teacher/backend:latest
+```
+
+Windows 一键构建：
+
+```powershell
+powershell -File scripts/build_backend_image.ps1 ccr.ccs.tencentyun.com/chem-teacher/backend:v1
 ```
 
 ---

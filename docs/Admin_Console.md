@@ -58,11 +58,29 @@ node scripts/build.mjs
 
 - `frontend/admin-dist/`
 
-后端会自动将该目录挂载到：
+## 5. 生产镜像（含 admin-console 静态页）
 
-- `/admin-console`
+从仓库根目录构建后端镜像（会先编译 admin-web，再写入镜像 `/frontend/admin-dist`）：
 
-## 5. 生产配置
+```bash
+node admin-web/scripts/build.mjs
+docker build -f backend/Dockerfile -t ccr.ccs.tencentyun.com/chem-teacher/backend:v29 .
+docker push ccr.ccs.tencentyun.com/chem-teacher/backend:v29
+```
+
+Windows 可一键执行：
+
+```powershell
+powershell -File scripts/build_backend_image.ps1 ccr.ccs.tencentyun.com/chem-teacher/backend:v29
+```
+
+CloudRun 更新镜像后，后台入口：
+
+- `https://<your-cloudrun-host>/admin-console/`
+
+本地 Docker Compose 也会使用同一 Dockerfile（`backend/docker-compose.yml` 的 build context 为仓库根目录）。
+
+## 6. 生产配置
 
 至少需要配置：
 
@@ -84,7 +102,7 @@ ADMIN_USER_IDS=你的用户ID
 - `JWT_SECRET_KEY`
 - `CORS_ORIGINS`
 
-## 6. 自动化烟雾验证
+## 7. 自动化烟雾验证
 
 已提供 HTTP 级烟雾脚本：
 
@@ -123,7 +141,7 @@ python scripts/smoke_admin_console.py
 }
 ```
 
-## 7. 当前已知限制
+## 8. 当前已知限制
 
 - 浏览器自动化烟雾测试尚未固化为稳定脚本，当前线程环境下 `agent-browser` 仍受 Chrome/CDP 自动拉起问题影响；HTTP 级烟雾脚本已可作为稳定替代入口。
 - 后台第一版已可用于个人开发者日常维护，但还不是企业级多角色管理系统。

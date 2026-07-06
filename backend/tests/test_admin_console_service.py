@@ -16,6 +16,8 @@ class _User:
 
 class _Settings:
     DB_TYPE = "mysql"
+    DB_HOST = "sh-cynosdbmysql-grp-kz0y0ejc.sql.tencentcdb.com"
+    DB_NAME = "cloud1-d5gls7mdgf0e5f907"
     COS_SECRET_ID = "secret-id"
     COS_BUCKET = "chem-bucket"
     OCR_DEFAULT_ENGINE = "tesseract"
@@ -28,6 +30,7 @@ class _Settings:
 from app.services.admin_console_service import (
     build_system_status_payload,
     is_admin_user,
+    mask_db_host,
     parse_admin_csv,
 )
 
@@ -53,6 +56,9 @@ class AdminConsoleServiceTests(unittest.TestCase):
 
         self.assertEqual(payload["health"], "ok")
         self.assertEqual(payload["database"]["type"], "mysql")
+        self.assertEqual(payload["database"]["name"], "cloud1-d5gls7mdgf0e5f907")
+        self.assertIn("...", payload["database"]["host_masked"])
+        self.assertNotIn("Test123456", payload["database"]["host_masked"])
         self.assertEqual(payload["storage"]["mode"], "cos")
         self.assertEqual(payload["storage"]["bucket"], "chem-bucket")
         self.assertEqual(payload["ocr"]["default_engine"], "tesseract")
@@ -60,6 +66,10 @@ class AdminConsoleServiceTests(unittest.TestCase):
         self.assertEqual(payload["runtime"]["user_count"], 3)
         self.assertNotIn("COS_SECRET_ID", str(payload))
         self.assertNotIn("secret-id", str(payload))
+
+    def test_mask_db_host_keeps_local_labels(self):
+        self.assertEqual(mask_db_host("mysql"), "mysql")
+        self.assertEqual(mask_db_host("127.0.0.1"), "127.0.0.1")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,22 @@
 
 ## 本轮完成记录
 
+### 2026-07-04：生产镜像打包 admin-console 静态页
+
+- 调整后端 Docker 构建流程：从仓库根目录构建，将 `frontend/admin-dist` 复制到镜像 `/frontend/admin-dist`。
+- `app/main.py` 增加 `_resolve_admin_console_dir()`，兼容本地仓库路径与容器内 `/frontend/admin-dist`。
+- 新增 `scripts/build_backend_image.ps1` 一键构建 admin 静态页 + Docker 镜像。
+- 新增仓库根 `.dockerignore`；`backend/docker-compose.yml` build context 改为仓库根目录。
+- 更新 `docs/Admin_Console.md`、`docs/web address.md` 补充线上 `/admin-console/` 入口与构建说明。
+- 本地验证：`chem-teacher/backend:admin-console-test` 镜像内 `/admin-console/` 返回 200。
+
+### 2026-07-04：Code Review 跟进修复
+
+- `fix_utf8_mojibake.py` 的 `--apply` 仅更新命中乱码条件的行，避免误伤正常中文。
+- 根目录 `docker-compose.yml` 与新版 Dockerfile 对齐（仓库根 context、`8000:8080`、`DB_TYPE=mysql`、admin-dist 挂载）。
+- 同步 `docs/Docker.md` 构建说明；新增 `scripts/build_backend_image.sh`。
+- 补充 `_resolve_admin_console_dir()` 与 UTF-8 修复脚本的单测。
+
 ### 2026-07-03：个人开发者控制台一轮 HTTP/API 级 QA 结论
 
 - 已完成一轮以“常见路径 + 潜在风险点”为核心的后台 QA，覆盖：

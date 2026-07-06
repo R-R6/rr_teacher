@@ -1,6 +1,17 @@
 """Helpers for admin console access checks and payload shaping."""
 
 
+def mask_db_host(host: str | None) -> str:
+    value = (host or "").strip()
+    if not value:
+        return ""
+    if value in {"127.0.0.1", "localhost", "mysql"}:
+        return value
+    if len(value) <= 8:
+        return value[:2] + "***"
+    return f"{value[:6]}...{value[-8:]}"
+
+
 def parse_admin_csv(value: str | None) -> set[str]:
     return {item.strip() for item in (value or "").split(",") if item.strip()}
 
@@ -21,6 +32,8 @@ def build_system_status_payload(settings, health_status: str, question_count: in
         "health": health_status,
         "database": {
             "type": settings.DB_TYPE,
+            "name": getattr(settings, "DB_NAME", "") or "",
+            "host_masked": mask_db_host(getattr(settings, "DB_HOST", "")),
         },
         "storage": {
             "mode": "cos" if cos_enabled else "local",

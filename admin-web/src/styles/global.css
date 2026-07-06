@@ -587,6 +587,24 @@ a {
   border: 1px solid rgba(203, 213, 225, 0.86);
 }
 
+.status-value-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.status-value-stack strong,
+.status-value-stack small {
+  display: block;
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.status-value-stack small {
+  color: var(--ink-soft);
+}
+
 .list-state-summary {
   display: grid;
   gap: 12px;

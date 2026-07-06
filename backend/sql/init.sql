@@ -9,6 +9,8 @@ CREATE DATABASE IF NOT EXISTS chem_teacher
 
 USE chem_teacher;
 
+SET NAMES utf8mb4;
+
 -- ─── 用户表 ───
 CREATE TABLE IF NOT EXISTS `user` (
   `id` CHAR(32) NOT NULL COMMENT '用户ID(UUID hex)',
