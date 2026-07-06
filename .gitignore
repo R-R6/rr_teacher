@@ -61,4 +61,10 @@ frontend/admin-dist/
 admin-web/dist/
 
 # 临时 skills 目录（可能重复安装）
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/cursor-commander/
+!.agents/skills/cursor-commander/**
+!.agents/skills/fullstack-shipper/
+!.agents/skills/fullstack-shipper/**

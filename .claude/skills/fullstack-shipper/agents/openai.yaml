@@ -1,0 +1,4 @@
+interface:
+  display_name: "个人全栈交付"
+  short_description: "从需求拆解、实现验证到上线文档，收口个人全栈项目。"
+  default_prompt: "Use $fullstack-shipper 来规划并验收一个个人全栈功能从需求到上线的交付闭环。"

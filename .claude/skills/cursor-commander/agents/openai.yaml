@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cursor Commander"
+  short_description: "Draft safe, staged execution prompts for Cursor."
+  default_prompt: "Use $cursor-commander to draft a Cursor prompt for review, implementation, or staged execution."

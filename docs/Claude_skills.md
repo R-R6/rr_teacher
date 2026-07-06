@@ -79,7 +79,7 @@
 
 ---
 
-## 三、本项目已安装的 Skills（18个）
+## 三、本项目已安装的 Skills（20个）
 
 > 这些都可以在对话框输入 `/` 直接调用。
 
@@ -97,10 +97,17 @@
 
 | 命令                        | 说明                      | 使用示例                               |
 | ------------------------- | ----------------------- | ---------------------------------- |
+| `/fullstack-shipper`      | 🚀 个人全栈项目端到端交付工作流     | `/fullstack-shipper 补齐上线前验收链路`     |
 | `/fullstack-developer`    | 🔧 全栈开发模式               | `/fullstack-developer 搭建用户模块`      |
 | `/python-design-patterns` | 🐍 Python 设计模式与最佳实践     | `/python-design-patterns 重构认证模块`   |
 | `/java-spring-boot`       | ☕ Java Spring Boot 开发指南 | `/java-spring-boot 创建 REST API`    |
 | `/api-design-principles`  | 🔌 API 设计原则与规范          | `/api-design-principles 设计题目管理API` |
+
+### 🤝 协作与指挥
+
+| 命令 | 说明 | 使用示例 |
+|------|------|---------|
+| `/cursor-commander` | 🪖 让 Claude 扮演指挥官，为 Cursor 生成完整执行提示词 | `/cursor-commander 写一段提示词，让 Cursor 先审查支付模块，再决定是否修改` |
 
 ### 🧪 测试与质量
 
@@ -157,6 +164,13 @@
 /java-spring-boot        → Spring Boot 开发
 /api-design-principles   → API 设计规范
 /fullstack-developer     → 全栈开发
+/fullstack-shipper       → 全栈交付收口
+```
+
+### 场景：人工多 agent 协作
+
+```
+/cursor-commander        → 让 Claude 写给 Cursor 的执行提示词
 ```
 
 ### 场景：测试与质量
@@ -206,7 +220,26 @@ npx skills add <repo> --list
 | 位置 | 内容 |
 |------|------|
 | `.claude/commands/` | 项目级斜杠命令（`/` 触发） |
-| `.claude/skills/` | 项目级技能文件（自动加载） |
+| `.claude/skills/` | 项目级技能文件（Claude Desktop / Claude Code 可读取） |
 | `~/.claude/commands/` | 全局斜杠命令 |
 | `.mcp.json` | MCP 服务器配置 |
 | `CLAUDE.md` | 项目记忆文件 |
+
+---
+
+## 七、项目内 Codex Skills（通过 `Use $skill-name` 触发）
+
+> 这类 skill 放在 `.agents/skills/` 下，主要给 Codex 用，不一定对应 `/` 斜杠命令。
+
+| Skill | 说明 | 使用示例 |
+|------|------|---------|
+| `cursor-commander` | 让 Codex 充当“指挥官”，只负责输出给 Cursor 的完整执行提示词，适合代码审查、bug 修复、分阶段侦察、人工多 agent 协作。 | `Use $cursor-commander：帮我写一段提示词，让 Cursor 先审查支付模块，再按结果决定是否修改。` |
+| `fullstack-shipper` | 让 Codex 按个人全栈项目交付流程思考，从需求、接口、数据库、测试、上线到文档收口形成闭环。 | `Use $fullstack-shipper：帮我补齐这个功能从实现到上线前验收的交付链路。` |
+
+`cursor-commander` 的常见用法：
+
+- 审查模式：`Use $cursor-commander：我要审查后台 billing 功能，先不要改代码。`
+- 执行模式：`Use $cursor-commander：写一段提示词，让 Cursor 修复后台用户列表的配额显示问题，并跑相关测试。`
+- 分阶段模式：`Use $cursor-commander：这个任务比较复杂，先写第一段侦察提示词，让 Cursor 只定位 Word 导出公式错乱的原因。`
+
+更完整的说明见 [docs/Codex_Skills_and_Cursor_Commander.md](docs/Codex_Skills_and_Cursor_Commander.md)。
