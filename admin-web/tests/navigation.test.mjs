@@ -15,6 +15,11 @@ test('admin navigation covers first phase modules', () => {
     'papers',
     'users',
     'cost-monitor',
+    'billing',
     'system-status',
   ])
+
+  const billingItem = NAV_ITEMS.find((item) => item.key === 'billing')
+  assert.equal(billingItem.path, '/billing')
+  assert.equal(billingItem.label, '计费权益')
 })

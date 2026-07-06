@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, questions, ocr, papers, tags, export, mistakes, practice, admin, admin_console
+from app.api import auth, questions, ocr, papers, tags, export, mistakes, practice, admin, admin_console, billing, admin_billing
 from app.api import upload as upload_api
 
 logger = logging.getLogger(__name__)
@@ -195,8 +195,10 @@ app.include_router(tags.router, prefix="/api/tags", tags=["标签管理"])
 app.include_router(export.router, prefix="/api/export", tags=["Word导出"])
 app.include_router(mistakes.router, prefix="/api/mistakes", tags=["错题本"])
 app.include_router(practice.router, prefix="/api/practice", tags=["刷题练习"])
+app.include_router(billing.router, prefix="/api/billing", tags=["计费与支付"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理工具"])
 app.include_router(admin_console.router, prefix="/api/admin", tags=["开发者控制台"])
+app.include_router(admin_billing.router, prefix="/api/admin/billing", tags=["后台计费管理"])
 app.include_router(upload_api.router, prefix="/api/upload", tags=["文件上传"])
 
 

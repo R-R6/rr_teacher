@@ -57,6 +57,21 @@
         <text class="quota-hint">{{ quotaHint }}</text>
       </view>
 
+      <!-- 种子计划入口 -->
+      <view class="billing-card" @tap="openSeedOffer">
+        <view class="billing-icon">
+          <view class="billing-icon-core"></view>
+        </view>
+        <view class="billing-copy">
+          <view class="billing-title-row">
+            <text class="billing-title">种子计划 · 终身权益</text>
+            <text class="billing-badge">限前 50 名</text>
+          </view>
+          <text class="billing-desc">前 10 名免费，第 11-50 名 9.9 元终身开通</text>
+        </view>
+        <text class="billing-arrow">›</text>
+      </view>
+
       <!-- 关于小睿化学 -->
       <view class="intro-card">
         <text class="intro-title">🧪 关于小睿化学</text>
@@ -188,6 +203,9 @@ export default {
           }
         }
       } catch (e) {}
+    },
+    openSeedOffer() {
+      uni.navigateTo({ url: '/pages/billing/seed-offer' })
     },
     handleLogout() {
       uni.showModal({
@@ -351,6 +369,72 @@ export default {
   font-size: 24rpx;
   color: #9CA3AF;
   margin-top: 12rpx;
+}
+
+/* 种子计划入口 */
+.billing-card {
+  margin: 0 24rpx 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  border: 2rpx solid #EEF2FF;
+  &:active { background: #F8FAFF; }
+}
+.billing-icon {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #4A6CF7, #8B5CF6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.billing-icon-core {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 10rpx rgba(255,255,255,0.22);
+}
+.billing-copy {
+  flex: 1;
+  min-width: 0;
+}
+.billing-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.billing-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1F2937;
+}
+.billing-badge {
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  background: #FEF3C7;
+  color: #B45309;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+.billing-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6B7280;
+  line-height: 1.45;
+}
+.billing-arrow {
+  font-size: 36rpx;
+  color: #9CA3AF;
+  flex-shrink: 0;
 }
 
 /* 关于小睿化学 */

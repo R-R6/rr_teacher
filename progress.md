@@ -13,17 +13,119 @@
 | Word 附图导出 | 已完成第一版 | 试卷导出和选定题目导出已按 `QuestionImage` 带入附图 |
 | 生产化配置治理 | 已完成第一版 | API 地址支持环境注入，生产密钥和环境变量已增加启动校验 |
 | 成本控制与限流 | 已完成第一版 | 高成本 OCR 引擎已支持用户级/全局每日额度 |
+| 用户 OCR 用量与套餐限额 | 已完成第一版 | 后台用户详情已支持查看高成本 OCR 明细、引擎额度状态，并可配置用户套餐、每日/月度 OCR 限额 |
 | 数据库迁移治理 | 已完成第一版 | 已加入 Alembic scaffold、baseline migration 和生产禁用自动建表开关 |
-| 服务层拆分与任务化 | 进行中 | 已先抽出 Word 导出附图读取和 payload 构建逻辑 |
+| 服务层拆分与任务化 | 进行中 | 已抽出 `QuestionService` 的题目图片/标签同步逻辑与 `ExportService` 的 Word 导出附图读取/payload 构建逻辑，`OcrService` 和任务状态模型待补 |
 | 时间显示修复 | 已完成第一版 | 题目/试卷列表改为按后端本地时间字符串解析显示，避免晚 8 小时 |
 | 难度标签自定义显示 | 已完成第一版 | 题库编辑和 OCR 结果快速保存的难度选择改为读取后端难度标签名称，支持超过 5 档后换行显示 |
 | 标签管理增强 | 已完成第一版 | 四类标签支持新增、改名、调整顺序和安全删除，标签页升级为显式可维护面板 |
-| 个人开发者控制台 | 已完成第一版 | 已完成后台管理 API、独立 `admin-web` 工程、首期页面、静态挂载、接口联调、第一轮 UI/UX 收口与一轮 HTTP/API 级 QA，剩余浏览器自动化烟雾验证 |
+| 个人开发者控制台 | 已完成第一版 | 已完成后台管理 API、独立 `admin-web` 工程、首期页面、静态挂载、HTTP 级 smoke 脚本、接口联调、第一轮 UI/UX 收口与一轮 HTTP/API 级 QA，剩余浏览器自动化烟雾验证 |
 | Figma 官方工作流接入准备 | 已完成第一版 | 已安装 OpenAI 官方 Figma 技能组合，并补充项目内工作流说明，待配置 Figma MCP server |
 | Figma MCP 与设计规则草案 | 已完成第一版 | 已接入项目级 Figma MCP 配置并写入设计系统规则草案，待重启工具链后验证官方 Figma MCP 工具可用 |
 | Figma 工作流规则与设计系统参考 | 已完成第一版 | 拆出独立 `.claude/rules/figma-design-system.md`，补充 `docs/Figma_MCP_Setup.md` 与参考图，`.mcp.json` 切换到 `figma-developer-mcp` stdio 模式 |
+| 种子用户购买前端底座 | 已完成第一版 | 小程序“我的”页已接入种子计划入口，购买页与微信支付适配层已落地，最终权益仍以后端订单/权益状态确认为准 |
+| 种子用户 billing 后端底座 | 已完成第一版 | 已补齐种子活动、资格、订单、权益、事件日志、用户侧 billing API、后台 billing 查询/人工处理 API，并和用户套餐/限额底座打通 |
+| 后台 billing 页面 | 已完成第一版 | 管理台已接入 `/api/admin/billing/*`，可查看种子摘要、资格/订单/权益并执行释放、关单、手工发放 |
+| 微信支付 v3 接入 | 进行中 | JSAPI 下单、回调验签/解密底座已补齐；真实商户参数、平台证书、公网 notify URL、低金额验收仍待配置 |
 
 ## 本轮完成记录
+
+### 2026-07-06：后台 billing 页面、小程序支付 pending 保护、微信支付 v3 底座
+
+- 管理台新增 `BillingPage`，接入 `/api/admin/billing/*`：
+  - 种子计划摘要指标（免费已确认、9.9 待支付/已支付、剩余名额）
+  - 资格 / 订单 / 权益三个 tab 列表与分页
+  - 释放资格、关闭订单、手工发放终身权益
+  - 关单 / 释放资格动作补上 `try/catch`，并在 `admin.js` 中显式传 `{}`，避免空 body 或接口异常时页面静默失败
+- 小程序 `seed-offer` 支付回查改为 `isPaymentConfirmed` 判定：
+  - 仅 `order.status === paid` 或权益 `active` 时提示「订单已确认」
+  - `pending` 时提示「支付结果等待确认」，避免误报成功
+- 后端补齐微信支付 v3 配置与接入：
+  - `config.py` 新增 `WECHAT_PAY_*` 字段与 fail-fast 校验
+  - `wechat_pay_v3.py` 提供 JSAPI 下单、`requestPayment` 参数、回调验签与 resource 解密
+  - `billing_service.create_seed_order` 在 `WECHAT_PAY_ENABLED=true` 时调用真实下单并保存 `payment_params`
+  - `billing.py` 回调改为读取 raw body + 微信签名头，DEBUG mock JSON 仍可用于本地测试
+- 说明：真实生产支付仍需用户自行配置商户号、证书、API v3 Key、公网 notify URL 与平台证书，并完成低金额验收。
+- 本轮验证记录：
+  - `python -m py_compile backend/app/config.py backend/app/services/billing_service.py backend/app/services/wechat_pay_v3.py backend/app/api/billing.py`：通过
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest discover -s backend/tests -v`：62/62 OK
+  - `node --test admin-web/tests/*.test.mjs`：14/14
+  - `node admin-web/scripts/build.mjs`：成功
+  - `frontend` 目录下 `node --test tests/*.test.mjs`：53/53
+  - `npx.cmd uni build -p mp-weixin`：Build complete
+- 仍待用户配置与验收：
+  - `WECHAT_APPID` / `WECHAT_SECRET`，用于微信登录获取 `openid`
+  - `WECHAT_PAY_*` 真实商户参数、平台证书与公网 HTTPS `notify URL`
+  - 低金额真实支付端到端回归与生产回调验签确认
+
+### 2026-07-06：种子用户 billing 后端底座与前后端联通
+
+- 新增 `billing_offer`、`billing_eligibility`、`billing_order`、`billing_entitlement`、`billing_event_log` 模型与 `20260706_0003_billing.py` 迁移。
+- 新增用户侧接口：
+  - `GET /api/billing/seed-offer`
+  - `POST /api/billing/seed-offer/claim`
+  - `POST /api/billing/orders`
+  - `GET /api/billing/orders/{order_id}`
+  - `POST /api/billing/payments/wechat/notify`
+  - `GET /api/billing/me/entitlements`
+- 新增后台 billing 接口：
+  - `GET /api/admin/billing/seed-summary`
+  - `GET /api/admin/billing/eligibilities`
+  - `GET /api/admin/billing/orders`
+  - `GET /api/admin/billing/entitlements`
+  - `POST /api/admin/billing/orders/{order_id}/close`
+  - `POST /api/admin/billing/eligibilities/{eligibility_id}/release`
+  - `POST /api/admin/billing/entitlements/grant`
+- 领取逻辑按“前 10 名免费、第 11-50 名 9.9 元终身”分配资格；免费资格立即发放 `lifetime_access`；付费资格创建订单后仍以后端支付通知/回查结果发放权益。
+- 权益发放会同步更新 `user_usage_plan`：免费种子用户写入 `free_seed`，9.9 种子用户写入 `seed_lifetime_9_9`，OCR 限额仍沿用环境默认或后台手动配置，避免支付后自动变成无限量。
+- 开发环境可返回 mock `wx.requestPayment` 参数用于 UI 联调；生产环境默认关闭 mock，真实微信商户下单、验签、解密仍需后续接入。
+- 已完成验证：
+  - `python -m py_compile backend/app/models.py backend/app/schemas.py backend/app/services/billing_service.py backend/app/api/billing.py backend/app/api/admin_billing.py backend/app/main.py`
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest discover -s backend/tests -v`
+  - `node --test tests/*.test.mjs`
+
+### 2026-07-06：微信支付 UI 与种子计划前端底座
+
+- 在微信小程序“我的”页新增“种子计划 · 终身权益”入口，保持底部 Tab 不新增购买页入口，购买路径收敛在“我的”内。
+- 新增 `pages/billing/seed-offer`，展示前 10 名免费、第 11-50 名 9.9 元终身的首期种子活动规则、当前资格状态、名额摘要与支付入口。
+- 新增 `billingAPI` 前端封装：
+  - `GET /api/billing/seed-offer`
+  - `POST /api/billing/seed-offer/claim`
+  - `POST /api/billing/orders`
+  - `GET /api/billing/orders/{order_id}`
+  - `GET /api/billing/me/entitlements`
+- 新增 `wechat-payment.js`，将 `uni.requestPayment` 与订单回查拆开处理，避免把前端支付回调当作最终权益来源。
+- 新增 `frontend/tests/billing-seed-offer.test.mjs`，覆盖“我的”入口、路由注册、billing API 封装、支付后回查订单和页面文案边界。
+- 已完成验证：
+  - `node --test tests/billing-seed-offer.test.mjs`
+  - `node --test tests/*.test.mjs`
+  - `npx.cmd uni build -p mp-weixin`
+- 说明：`npm run build:mp-weixin` 在 Windows PowerShell 下仍会被脚本尾部的 Unix 风格 `cp ... || true` 影响退出码；直接 `uni build` 编译已通过。
+
+### 2026-07-06：后台补齐用户 OCR 明细与套餐限额底座
+
+- 新增 `user_usage_plan` 模型、`20260706_0002_user_usage_plan.py` 迁移和 `usage_plan_service.py`，将用户套餐、每日 OCR 限额、月度 OCR 限额、来源和备注收敛到一张后台可维护的配置表。
+- `ocr_quota.py` 改为先读取用户套餐配置，再回退到环境变量默认额度：
+  - 保留现有 `OCR_DAILY_USER_LIMIT` / `OCR_DAILY_GLOBAL_LIMIT` 作为默认值；
+  - 支持按用户覆盖每日高成本 OCR 限额；
+  - 预留月度 OCR 限额口径，便于后续接正式套餐与支付权益。
+- `backend/app/api/admin_console.py` 新增后台接口：
+  - `GET /api/admin/users/{user_id}/ocr-usage`
+  - `PUT /api/admin/users/{user_id}/quota-profile`
+  - 同时扩展 `GET /api/admin/users/{user_id}`，返回当前 `quota_profile`。
+- `admin-web/src/pages/UsersPage.vue` 用户抽屉补齐三块信息：
+  - 套餐摘要与生效额度；
+  - 付费 OCR 引擎今日/本月/全局额度状态；
+  - 最近高成本 OCR 调用明细与后台可编辑的套餐/限额表单。
+- 新增与更新测试：
+  - `backend/tests/test_user_usage_plan.py`
+  - `admin-web/tests/user-quota-ui.test.mjs`
+  - `backend/tests/test_migrations.py`
+- 已完成验证：
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m py_compile backend/app/models.py backend/app/schemas.py backend/app/api/admin_console.py backend/app/services/ocr_quota.py backend/app/services/usage_plan_service.py backend/alembic/versions/20260706_0002_user_usage_plan.py`
+  - `C:/Users/admin/scoop/apps/python/current/python.exe -m unittest discover -s backend/tests -v`
+  - `node --test admin-web/tests/*.test.mjs`
+  - `node admin-web/scripts/build.mjs`
 
 ### 2026-07-04：生产镜像打包 admin-console 静态页
 
@@ -414,9 +516,11 @@
 | 优先级 | 问题 | 状态 |
 | --- | --- | --- |
 | P1 | 数据库迁移治理仍需生产演练与备份记录模板 | 跟进 |
-| P1 | API 层部分业务逻辑偏厚，需要逐步抽 service | 待优化 |
+| P1 | OCR 与部分后台路由仍有业务逻辑停留在 API 层，需要在已落地 `QuestionService` / `ExportService` 基础上继续下沉 service | 待优化 |
 | P1 | 题目图片挂接需要继续加强用户归属校验 | 待优化 |
-| P2 | 个人开发者控制台尚缺一轮浏览器自动化烟雾验证；当前已做 HTTP 级联调，但 `agent-browser` 在本机环境受 npm cache / Chrome 接管问题影响未跑通 | 跟进 |
+| P1 | 个人开发者控制台尚缺一轮浏览器自动化烟雾验证；当前已做 HTTP 级联调和 smoke 脚本，但 `agent-browser` 在本机环境受 npm cache / Chrome 接管问题影响未跑通 | 跟进 |
+| P1 | 种子计划 billing 后端底座已落地，但真实微信商户下单、回调验签/解密、平台交易查询仍待接入 | 待开发 |
+| P1 | 9.9 付费资格已支持访问时补偿过期释放，但尚未接入独立定时任务扫描 | 待优化 |
 | P3 | 后端 schema 仍存在 Pydantic v2 class-based `Config` deprecation 警告，当前不影响功能，但后续升级需统一改为 `ConfigDict` | 待清理 |
 | P2 | `npm run build:mp-weixin` 在 Windows 下仍受类 Unix 命令影响 | 待修复 |
 | ~~P2~~ | ~~`npm run build:mp-weixin` 当前加载 `vite.config.js` 报 `uni is not a function`,需核对 `@dcloudio/vite-plugin-uni` 导出方式/版本~~ | 已修复(2026-07-01) |
@@ -425,17 +529,19 @@
 
 ### 1. 个人开发者控制台（P1）
 
-目标：在已完成第一版交付的基础上，补齐浏览器层烟雾验证与细节收口。
+目标：在已完成第一版交付和 HTTP 级 smoke 的基础上，补齐浏览器层烟雾验证与细节收口。
 
 任务：
 
 - 在可用浏览器自动化环境下补一轮登录、仪表盘、题库、标签、OCR 详情烟雾测试；
+- 手工回归用户详情中的套餐配置、OCR 明细和额度状态；
 - 根据浏览器烟雾结果修补首批交互细节；
 - 视需要补充后台使用说明或部署说明。
 
 验收：
 
 - 后台登录与关键页面浏览器层烟雾流程通过；
+- 用户套餐与 OCR 限额调整路径稳定可用；
 - 当前第一版后台可作为个人开发者日常控制台使用；
 - 常见内容维护不再需要直接操作数据库。
 
@@ -445,9 +551,8 @@
 
 任务：
 
-- 抽出 `OcrService`；
-- 抽出 `QuestionService`；
-- 抽出 `ExportService`；
+- 补齐 `OcrService`；
+- 在已落地 `QuestionService` / `ExportService` 基础上继续下沉 OCR、题目管理和导出路由逻辑；
 - 设计 `job` 表；
 - OCR/导出逐步支持任务状态查询。
 
@@ -471,3 +576,18 @@
 
 - 迁移命令、备份点和回滚路径有文档记录；
 - 不依赖 `AUTO_CREATE_TABLES` 修改生产表结构。
+
+### 4. CloudRun 成本与实例策略核对（P2）
+
+目标：用真实运行数据决定是否继续 CloudRun 或迁移 CVM。
+
+任务：
+
+- 核对 CloudRun 最大实例和费用告警配置；
+- 收集 OCR、导出、COS 的真实调用量和费用；
+- 形成是否迁移 CVM 的判断记录。
+
+验收：
+
+- 成本与限额配置有记录；
+- 是否迁移 CVM 有基于数据的结论。

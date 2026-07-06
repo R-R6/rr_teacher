@@ -22,6 +22,7 @@ def _import_config_with_env(overrides: dict[str, str]) -> subprocess.CompletedPr
             "AUTO_CREATE_TABLES": "false",
             "CORS_ORIGINS": "https://servicewechat.com",
             "SWAGGER_ENABLED": "false",
+            "WECHAT_PAY_MOCK_IN_DEBUG": "false",
         }
     )
     env.update(overrides)

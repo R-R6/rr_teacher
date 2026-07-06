@@ -8,5 +8,6 @@ export const NAV_ITEMS = [
   { key: 'papers', label: '试卷', path: '/papers', icon: 'papers', caption: '组卷结果与导出' },
   { key: 'users', label: '用户', path: '/users', icon: 'users', caption: '用户归属与活跃' },
   { key: 'cost-monitor', label: '成本监控', path: '/cost-monitor', icon: 'cost', caption: 'OCR 调用成本' },
+  { key: 'billing', label: '计费权益', path: '/billing', icon: 'billing', caption: '种子名额与订单' },
   { key: 'system-status', label: '系统状态', path: '/system-status', icon: 'system', caption: '环境与健康摘要' },
 ]

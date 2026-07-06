@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { DEFAULT_ROUTE } from '@/config/navigation.js'
 import { useAuthStore } from '@/stores/auth.js'
 
+import BillingPage from '@/pages/BillingPage.vue'
 import ControlShell from '@/layouts/ControlShell.vue'
 import CostMonitorPage from '@/pages/CostMonitorPage.vue'
 import DashboardPage from '@/pages/DashboardPage.vue'
@@ -30,6 +31,7 @@ const router = createRouter({
         { path: 'papers', component: PapersPage, meta: { title: '试卷管理', subtitle: '跟踪组卷结果和导出产物，清理不需要的试卷。' } },
         { path: 'users', component: UsersPage, meta: { title: '用户查看', subtitle: '核对用户归属、内容产出和 OCR 使用情况。' } },
         { path: 'cost-monitor', component: CostMonitorPage, meta: { title: '成本监控', subtitle: '从引擎、日期和用户维度核对 OCR 资源消耗。' } },
+        { path: 'billing', component: BillingPage, meta: { title: '计费权益', subtitle: '查看种子计划资格、订单和终身权益发放状态。' } },
         { path: 'system-status', component: SystemStatusPage, meta: { title: '系统状态', subtitle: '查看环境摘要、健康状态和关键运行开关。' } },
       ],
     },

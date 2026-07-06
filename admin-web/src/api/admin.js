@@ -86,6 +86,27 @@ export const adminApi = {
   getOcrUsage(days = 7) {
     return apiClient.get(withParams('/admin/cost/ocr-usage', { days }))
   },
+  getBillingSeedSummary() {
+    return apiClient.get('/admin/billing/seed-summary')
+  },
+  listBillingEligibilities(params) {
+    return apiClient.get(withParams('/admin/billing/eligibilities', params))
+  },
+  listBillingOrders(params) {
+    return apiClient.get(withParams('/admin/billing/orders', params))
+  },
+  listBillingEntitlements(params) {
+    return apiClient.get(withParams('/admin/billing/entitlements', params))
+  },
+  closeBillingOrder(orderId) {
+    return apiClient.post(`/admin/billing/orders/${orderId}/close`, {})
+  },
+  releaseBillingEligibility(eligibilityId) {
+    return apiClient.post(`/admin/billing/eligibilities/${eligibilityId}/release`, {})
+  },
+  grantBillingEntitlement(payload) {
+    return apiClient.post('/admin/billing/entitlements/grant', payload)
+  },
   getSystemStatus() {
     return apiClient.get('/admin/system/status')
   },

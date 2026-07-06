@@ -165,6 +165,17 @@ class UserQuotaProfileUpdateReq(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
 
 
+class BillingOrderCreateReq(BaseModel):
+    product_type: str = Field(default="seed_paid_lifetime", pattern="^seed_paid_lifetime$")
+    channel: str = Field(default="wechat_miniapp", pattern="^(wechat_miniapp|alipay)$")
+
+
+class AdminBillingGrantEntitlementReq(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=32)
+    source: str = Field(default="manual_grant", pattern="^(manual_grant|seed_free|seed_paid)$")
+    notes: Optional[str] = Field(None, max_length=500)
+
+
 class PaperCreateManualReq(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     subtitle: Optional[str] = Field(None, max_length=200)

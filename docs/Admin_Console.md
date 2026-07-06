@@ -102,7 +102,40 @@ ADMIN_USER_IDS=你的用户ID
 - `JWT_SECRET_KEY`
 - `CORS_ORIGINS`
 
-## 7. 自动化烟雾验证
+## 7. Billing 页面（种子计划运营）
+
+后台现已提供 billing 页面，用于查看和人工处理种子计划的资格、订单和权益状态。
+
+- 可查看种子摘要：免费已确认、9.9 待支付、9.9 已支付、剩余名额。
+- 可查看资格、订单、权益三个分页列表。
+- 可执行释放资格、关闭 `pending` 订单、手工发放终身权益。
+- 支付结果以后端为准：仅订单 `paid` 或权益 `active` 视为最终确认；`pending` 仍表示等待微信侧或回调确认。
+
+## 8. 微信支付联调前置项
+
+当前后端已经接好微信支付 v3 的 JSAPI 下单、回调验签和解密底座，但真实联调仍依赖以下前置项：
+
+```bash
+WECHAT_APPID=
+WECHAT_SECRET=
+WECHAT_PAY_ENABLED=true
+WECHAT_PAY_MCH_ID=
+WECHAT_PAY_MCH_SERIAL_NO=
+WECHAT_PAY_PRIVATE_KEY_PATH=
+# 或 WECHAT_PAY_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----...\n...
+WECHAT_PAY_API_V3_KEY=
+WECHAT_PAY_NOTIFY_URL=https://your-domain/api/billing/payments/wechat/notify
+WECHAT_PAY_PLATFORM_CERT_PATH=
+WECHAT_PAY_MOCK_IN_DEBUG=false
+```
+
+补充说明：
+
+- 未先完成微信登录并获取用户 `openid` 时，真实支付下单会返回 400。
+- 生产环境必须使用公网 HTTPS `WECHAT_PAY_NOTIFY_URL`，并准备好平台证书用于回调验签。
+- 下一轮建议先完成微信登录拿 `openid`，再做低金额真实支付验收。
+
+## 9. 自动化烟雾验证
 
 已提供 HTTP 级烟雾脚本：
 
@@ -141,7 +174,8 @@ python scripts/smoke_admin_console.py
 }
 ```
 
-## 8. 当前已知限制
+## 10. 当前已知限制
 
+- billing 页面与后台管理 API 已可用于人工处理种子计划订单，但真实微信支付链路仍待商户参数和微信登录配置完成后再做端到端验收。
 - 浏览器自动化烟雾测试尚未固化为稳定脚本，当前线程环境下 `agent-browser` 仍受 Chrome/CDP 自动拉起问题影响；HTTP 级烟雾脚本已可作为稳定替代入口。
 - 后台第一版已可用于个人开发者日常维护，但还不是企业级多角色管理系统。

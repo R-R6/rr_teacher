@@ -75,6 +75,128 @@ class UserUsagePlan(Base):
     user = relationship("User", back_populates="usage_plan")
 
 
+class BillingOffer(Base):
+    """Seed pricing offer configuration."""
+    __tablename__ = "billing_offer"
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Offer ID")
+    code = Column(String(50), unique=True, nullable=False, index=True, comment="Offer code")
+    name = Column(String(100), nullable=False, comment="Offer display name")
+    status = Column(String(20), default="active", nullable=False, comment="active/ended")
+    free_total = Column(Integer, default=10, nullable=False, comment="Free seed slots")
+    paid_total = Column(Integer, default=40, nullable=False, comment="Paid seed slots")
+    amount_cents = Column(Integer, default=990, nullable=False, comment="Paid amount in cents")
+    currency = Column(String(10), default="CNY", nullable=False, comment="Currency")
+    payment_window_minutes = Column(Integer, default=30, nullable=False, comment="Payment window")
+    starts_at = Column(DateTime, nullable=True, comment="Offer start time")
+    ends_at = Column(DateTime, nullable=True, comment="Offer end time")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="Update time")
+
+
+class BillingEligibility(Base):
+    """Per-user seed offer eligibility."""
+    __tablename__ = "billing_eligibility"
+    __table_args__ = (
+        Index("ix_billing_eligibility_offer_user", "offer_id", "user_id"),
+        Index("ix_billing_eligibility_offer_type_status", "offer_id", "type", "status"),
+    )
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Eligibility ID")
+    offer_id = Column(CHAR(32), ForeignKey("billing_offer.id"), nullable=False, index=True)
+    user_id = Column(CHAR(32), ForeignKey("user.id"), nullable=False, index=True)
+    type = Column(String(30), nullable=False, comment="free_seed/paid_seed_9_9")
+    status = Column(String(20), default="locked", nullable=False, comment="locked/converted/expired/cancelled")
+    slot_no = Column(Integer, nullable=True, comment="Allocated slot number")
+    expires_at = Column(DateTime, nullable=True, comment="Paid eligibility expiry")
+    converted_at = Column(DateTime, nullable=True, comment="Converted to entitlement time")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="Update time")
+
+    offer = relationship("BillingOffer")
+    user = relationship("User")
+
+
+class BillingOrder(Base):
+    """Billing order for seed paid lifetime access."""
+    __tablename__ = "billing_order"
+    __table_args__ = (
+        UniqueConstraint("order_no", name="uq_billing_order_no"),
+        Index("ix_billing_order_user_status", "user_id", "status"),
+        Index("ix_billing_order_eligibility_status", "eligibility_id", "status"),
+    )
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Order ID")
+    order_no = Column(String(64), nullable=False, comment="Business order number")
+    user_id = Column(CHAR(32), ForeignKey("user.id"), nullable=False, index=True)
+    offer_id = Column(CHAR(32), ForeignKey("billing_offer.id"), nullable=False, index=True)
+    eligibility_id = Column(CHAR(32), ForeignKey("billing_eligibility.id"), nullable=False, index=True)
+    product_type = Column(String(50), nullable=False, comment="seed_paid_lifetime")
+    channel = Column(String(30), nullable=False, comment="wechat_miniapp/alipay/manual")
+    status = Column(String(20), default="pending", nullable=False, comment="pending/paid/closed/expired/refunded")
+    amount_total = Column(Integer, nullable=False, comment="Amount in cents")
+    currency = Column(String(10), default="CNY", nullable=False, comment="Currency")
+    transaction_id = Column(String(128), nullable=True, index=True, comment="Payment provider transaction ID")
+    payment_params = Column(JSON, nullable=True, comment="Mini program payment params")
+    raw_payload = Column(JSON, nullable=True, comment="Payment callback or provider payload")
+    expires_at = Column(DateTime, nullable=True, comment="Order expiry")
+    paid_at = Column(DateTime, nullable=True, comment="Paid time")
+    notes = Column(Text, nullable=True, comment="Admin notes")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="Update time")
+
+    user = relationship("User")
+    offer = relationship("BillingOffer")
+    eligibility = relationship("BillingEligibility")
+
+
+class BillingEntitlement(Base):
+    """User entitlement granted by billing or manual operations."""
+    __tablename__ = "billing_entitlement"
+    __table_args__ = (
+        UniqueConstraint("user_id", "type", name="uq_billing_entitlement_user_type"),
+    )
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Entitlement ID")
+    user_id = Column(CHAR(32), ForeignKey("user.id"), nullable=False, index=True)
+    offer_id = Column(CHAR(32), ForeignKey("billing_offer.id"), nullable=True, index=True)
+    eligibility_id = Column(CHAR(32), ForeignKey("billing_eligibility.id"), nullable=True, index=True)
+    order_id = Column(CHAR(32), ForeignKey("billing_order.id"), nullable=True, index=True)
+    type = Column(String(50), default="lifetime_access", nullable=False, comment="Entitlement type")
+    status = Column(String(20), default="active", nullable=False, comment="active/revoked")
+    source = Column(String(50), nullable=False, comment="seed_free/seed_paid/manual_grant")
+    starts_at = Column(DateTime, nullable=True, comment="Start time")
+    expires_at = Column(DateTime, nullable=True, comment="Expiry time")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="Update time")
+
+    user = relationship("User")
+    offer = relationship("BillingOffer")
+    eligibility = relationship("BillingEligibility")
+    order = relationship("BillingOrder")
+
+
+class BillingEventLog(Base):
+    """Billing audit event log."""
+    __tablename__ = "billing_event_log"
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Event ID")
+    user_id = Column(CHAR(32), ForeignKey("user.id"), nullable=True, index=True)
+    offer_id = Column(CHAR(32), ForeignKey("billing_offer.id"), nullable=True, index=True)
+    eligibility_id = Column(CHAR(32), ForeignKey("billing_eligibility.id"), nullable=True, index=True)
+    order_id = Column(CHAR(32), ForeignKey("billing_order.id"), nullable=True, index=True)
+    entitlement_id = Column(CHAR(32), ForeignKey("billing_entitlement.id"), nullable=True, index=True)
+    event_type = Column(String(50), nullable=False, index=True, comment="Event type")
+    payload = Column(JSON, nullable=True, comment="Event payload")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+
+    user = relationship("User")
+    offer = relationship("BillingOffer")
+    eligibility = relationship("BillingEligibility")
+    order = relationship("BillingOrder")
+    entitlement = relationship("BillingEntitlement")
+
+
 # ────────────────────────── 题目分类标签 ──────────────────────────
 
 class QuestionTag(Base):

@@ -206,6 +206,14 @@ export const exportAPI = {
   questionsWord: (data) => request({ url: '/export/questions/word', method: 'POST', data }),
 }
 
+export const billingAPI = {
+  getSeedOffer: () => request({ url: '/billing/seed-offer', showErrorToast: false }),
+  claimSeedOffer: () => request({ url: '/billing/seed-offer/claim', method: 'POST' }),
+  createOrder: (data) => request({ url: '/billing/orders', method: 'POST', data }),
+  getOrder: (orderId) => request({ url: `/billing/orders/${orderId}`, showErrorToast: false }),
+  getEntitlements: () => request({ url: '/billing/me/entitlements', showErrorToast: false }),
+}
+
 export default {
   auth: authAPI,
   questions: questionsAPI,
@@ -214,4 +222,5 @@ export default {
   papers: papersAPI,
   tags: tagsAPI,
   export: exportAPI,
+  billing: billingAPI,
 }

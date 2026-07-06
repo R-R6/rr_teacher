@@ -83,6 +83,17 @@ class Settings(BaseSettings):
 
     WECHAT_APPID: str = ""
     WECHAT_SECRET: str = ""
+    WECHAT_PAY_ENABLED: bool = False
+    WECHAT_PAY_MOCK_IN_DEBUG: bool = True
+    WECHAT_PAY_NOTIFY_TOKEN: str = ""
+    WECHAT_PAY_API_BASE: str = "https://api.mch.weixin.qq.com"
+    WECHAT_PAY_MCH_ID: str = ""
+    WECHAT_PAY_MCH_SERIAL_NO: str = ""
+    WECHAT_PAY_PRIVATE_KEY_PATH: str = ""
+    WECHAT_PAY_PRIVATE_KEY: str = ""
+    WECHAT_PAY_API_V3_KEY: str = ""
+    WECHAT_PAY_NOTIFY_URL: str = ""
+    WECHAT_PAY_PLATFORM_CERT_PATH: str = ""
 
     SWAGGER_ENABLED: bool = True
     CORS_ORIGINS: str = (
@@ -99,10 +110,15 @@ class Settings(BaseSettings):
 
     def validate_runtime(self) -> None:
         """Fail fast for unsafe production configuration."""
+        errors: list[str] = []
+        self._validate_wechat_pay(errors)
+
         if self.DEBUG:
+            if errors:
+                joined = "; ".join(errors)
+                raise RuntimeError(f"Invalid configuration: {joined}")
             return
 
-        errors: list[str] = []
         self._validate_secret("SECRET_KEY", self.SECRET_KEY, DEFAULT_SECRET_KEY, errors)
         self._validate_secret("JWT_SECRET_KEY", self.JWT_SECRET_KEY, DEFAULT_JWT_SECRET_KEY, errors)
 
@@ -118,6 +134,36 @@ class Settings(BaseSettings):
         if errors:
             joined = "; ".join(errors)
             raise RuntimeError(f"Invalid production configuration: {joined}")
+
+    def _validate_wechat_pay(self, errors: list[str]) -> None:
+        if not self.DEBUG and self.WECHAT_PAY_MOCK_IN_DEBUG:
+            errors.append("WECHAT_PAY_MOCK_IN_DEBUG must be false when DEBUG=false")
+
+        using_real_wechat_pay = self.WECHAT_PAY_ENABLED and not (
+            self.DEBUG and self.WECHAT_PAY_MOCK_IN_DEBUG
+        )
+        if not using_real_wechat_pay:
+            return
+
+        required_fields = {
+            "WECHAT_APPID": self.WECHAT_APPID,
+            "WECHAT_PAY_MCH_ID": self.WECHAT_PAY_MCH_ID,
+            "WECHAT_PAY_MCH_SERIAL_NO": self.WECHAT_PAY_MCH_SERIAL_NO,
+            "WECHAT_PAY_API_V3_KEY": self.WECHAT_PAY_API_V3_KEY,
+            "WECHAT_PAY_NOTIFY_URL": self.WECHAT_PAY_NOTIFY_URL,
+            "WECHAT_PAY_PLATFORM_CERT_PATH": self.WECHAT_PAY_PLATFORM_CERT_PATH,
+        }
+        for name, value in required_fields.items():
+            if not (value or "").strip():
+                errors.append(f"{name} must be set when WECHAT_PAY_ENABLED=true")
+
+        if not (self.WECHAT_PAY_PRIVATE_KEY or "").strip() and not (
+            self.WECHAT_PAY_PRIVATE_KEY_PATH or ""
+        ).strip():
+            errors.append(
+                "WECHAT_PAY_PRIVATE_KEY or WECHAT_PAY_PRIVATE_KEY_PATH must be set "
+                "when WECHAT_PAY_ENABLED=true"
+            )
 
     @staticmethod
     def _validate_secret(name: str, value: str, default_value: str, errors: list[str]) -> None:

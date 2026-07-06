@@ -79,6 +79,13 @@
       }
     },
     {
+      "path": "pages/billing/seed-offer",
+      "style": {
+        "navigationBarTitleText": "种子计划",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/practice/practice",
       "style": {
         "navigationBarTitleText": "刷题练习",
