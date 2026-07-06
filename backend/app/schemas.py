@@ -153,6 +153,18 @@ class OcrCorrectReq(BaseModel):
     corrected_text: Optional[str] = None
 
 
+class UserQuotaProfileUpdateReq(BaseModel):
+    plan_code: str = Field(default="default", min_length=1, max_length=50)
+    plan_name: Optional[str] = Field(None, max_length=100)
+    daily_ocr_limit: Optional[int] = Field(None, ge=0, le=100000)
+    monthly_ocr_limit: Optional[int] = Field(None, ge=0, le=1000000)
+    status: str = Field(default="active", pattern="^(active|paused|expired)$")
+    source: str = Field(default="manual", pattern="^(manual|seed|payment)$")
+    starts_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    notes: Optional[str] = Field(None, max_length=500)
+
+
 class PaperCreateManualReq(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     subtitle: Optional[str] = Field(None, max_length=200)

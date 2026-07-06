@@ -10,10 +10,16 @@ from app.auth import get_current_admin
 from app.config import settings
 from app.database import get_db
 from app.models import OcrRecord, OcrUsageLog, Paper, PaperItem, Question, QuestionImage, QuestionTag, QuestionTagRel, User
-from app.schemas import ApiResp, OcrCorrectReq, QuestionUpdateReq, TagCreateReq, TagUpdateReq
+from app.schemas import ApiResp, OcrCorrectReq, QuestionUpdateReq, TagCreateReq, TagUpdateReq, UserQuotaProfileUpdateReq
 from app.services.admin_console_service import build_system_status_payload
 from app.services.cos_uploader import get_cos_url
+from app.services.ocr_quota import get_ocr_quota_status, paid_ocr_engines
 from app.services.question_service import load_question_images, load_question_tags, sync_question_images
+from app.services.usage_plan_service import (
+    get_effective_ocr_quota_limits,
+    serialize_user_usage_plan,
+    upsert_user_usage_plan,
+)
 
 from app.api.questions import _ensure_question_deletable
 from app.api.tags import get_next_sort_order, get_tag_usage_count
@@ -73,6 +79,19 @@ def _serialize_ocr_status(record: OcrRecord) -> str:
     if not (record.ocr_result_latex or record.ocr_result_text):
         return "empty"
     return "ok"
+
+
+def _serialize_usage_log(log: OcrUsageLog) -> dict:
+    return {
+        "id": log.id,
+        "user_id": log.user_id,
+        "engine": log.engine,
+        "usage_day": log.usage_day,
+        "status": log.status,
+        "error_message": log.error_message,
+        "created_at": log.created_at.isoformat() if log.created_at else None,
+        "updated_at": log.updated_at.isoformat() if log.updated_at else None,
+    }
 
 
 @router.get("/me", response_model=ApiResp)
@@ -821,6 +840,8 @@ async def get_admin_user_detail(
     ocr_count = (
         await db.execute(select(func.count()).select_from(OcrRecord).where(OcrRecord.user_id == user_id))
     ).scalar() or 0
+    quota_limits = await get_effective_ocr_quota_limits(db, user_id)
+    quota_profile = serialize_user_usage_plan(quota_limits.get("profile"), quota_limits)
 
     return ApiResp(
         data={
@@ -835,9 +856,139 @@ async def get_admin_user_detail(
             "question_count": question_count,
             "paper_count": paper_count,
             "ocr_count": ocr_count,
+            "quota_profile": quota_profile,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
+    )
+
+
+@router.get("/users/{user_id}/ocr-usage", response_model=ApiResp)
+async def get_admin_user_ocr_usage(
+    user_id: str,
+    days: int = Query(7, ge=1, le=30),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    date_keys = _build_date_keys(days)
+    start_day = date_keys[0]
+    quota_limits = await get_effective_ocr_quota_limits(db, user_id)
+    quota_profile = serialize_user_usage_plan(quota_limits.get("profile"), quota_limits)
+
+    usage_total = (
+        await db.execute(
+            select(func.count()).select_from(OcrUsageLog).where(
+                and_(OcrUsageLog.user_id == user_id, OcrUsageLog.usage_day >= start_day)
+            )
+        )
+    ).scalar() or 0
+    usage_logs = (
+        await db.execute(
+            select(OcrUsageLog)
+            .where(and_(OcrUsageLog.user_id == user_id, OcrUsageLog.usage_day >= start_day))
+            .order_by(OcrUsageLog.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).scalars().all()
+
+    summary_rows = (
+        await db.execute(
+            select(
+                OcrUsageLog.usage_day,
+                OcrUsageLog.engine,
+                OcrUsageLog.status,
+                func.count().label("total"),
+            )
+            .where(and_(OcrUsageLog.user_id == user_id, OcrUsageLog.usage_day >= start_day))
+            .group_by(OcrUsageLog.usage_day, OcrUsageLog.engine, OcrUsageLog.status)
+            .order_by(OcrUsageLog.usage_day.asc(), OcrUsageLog.engine.asc())
+        )
+    ).all()
+
+    daily_totals = {day: 0 for day in date_keys}
+    engine_totals: dict[str, int] = {}
+    status_totals: dict[str, int] = {}
+    for usage_day, engine, status, total in summary_rows:
+        total = int(total or 0)
+        daily_totals[usage_day] = daily_totals.get(usage_day, 0) + total
+        engine_totals[engine] = engine_totals.get(engine, 0) + total
+        status_totals[status] = status_totals.get(status, 0) + total
+
+    recent_records = (
+        await db.execute(
+            select(OcrRecord)
+            .where(OcrRecord.user_id == user_id)
+            .order_by(OcrRecord.created_at.desc())
+            .limit(10)
+        )
+    ).scalars().all()
+
+    paid_engine_status = []
+    for engine in sorted(paid_ocr_engines()):
+        paid_engine_status.append(
+            {
+                "engine": engine,
+                **await get_ocr_quota_status(db, user_id, engine),
+            }
+        )
+
+    return ApiResp(
+        data={
+            "user_id": user_id,
+            "username": user.username,
+            "days": [{"date": day, "total": daily_totals.get(day, 0)} for day in date_keys],
+            "by_engine": [
+                {"engine": engine, "total": total}
+                for engine, total in sorted(engine_totals.items())
+            ],
+            "by_status": [
+                {"status": status, "total": total}
+                for status, total in sorted(status_totals.items())
+            ],
+            "quota_profile": quota_profile,
+            "paid_engine_status": paid_engine_status,
+            "usage_logs": [_serialize_usage_log(log) for log in usage_logs],
+            "usage_total": int(usage_total or 0),
+            "page": page,
+            "page_size": page_size,
+            "recent_ocr_records": [
+                {
+                    "id": record.id,
+                    "engine": record.ocr_engine,
+                    "status": _serialize_ocr_status(record),
+                    "confidence": record.confidence,
+                    "result_text_preview": (record.ocr_result_text or record.ocr_result_latex or "")[:120],
+                    "created_at": record.created_at.isoformat() if record.created_at else None,
+                }
+                for record in recent_records
+            ],
+        }
+    )
+
+
+@router.put("/users/{user_id}/quota-profile", response_model=ApiResp)
+async def update_admin_user_quota_profile(
+    user_id: str,
+    req: UserQuotaProfileUpdateReq,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    profile = await upsert_user_usage_plan(db, user_id, req.model_dump())
+    quota_limits = await get_effective_ocr_quota_limits(db, user_id)
+    return ApiResp(
+        message="用户套餐与 OCR 限额已更新",
+        data=serialize_user_usage_plan(profile, quota_limits),
     )
 
 

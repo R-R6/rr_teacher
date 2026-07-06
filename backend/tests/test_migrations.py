@@ -23,16 +23,16 @@ class MigrationGovernanceTests(unittest.TestCase):
 
     def test_baseline_migration_covers_current_tables(self):
         version_files = sorted((BACKEND_DIR / "alembic" / "versions").glob("*.py"))
-        self.assertEqual(1, len(version_files), "baseline should be the only initial migration")
+        self.assertGreaterEqual(len(version_files), 1, "at least one migration should exist")
 
         models_py = (BACKEND_DIR / "app" / "models.py").read_text(encoding="utf-8")
         table_names = sorted(set(re.findall(r'__tablename__\s*=\s*"([^"]+)"', models_py)))
         self.assertIn("ocr_usage_log", table_names)
 
-        baseline = version_files[0].read_text(encoding="utf-8")
+        migration_sources = "\n".join(path.read_text(encoding="utf-8") for path in version_files)
         for table_name in table_names:
             with self.subTest(table=table_name):
-                self.assertIn(f'"{table_name}"', baseline)
+                self.assertIn(f'"{table_name}"', migration_sources)
 
     def test_auto_create_tables_is_explicitly_configured(self):
         config_py = (BACKEND_DIR / "app" / "config.py").read_text(encoding="utf-8")

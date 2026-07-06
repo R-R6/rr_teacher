@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import OcrUsageLog
+from app.services.usage_plan_service import get_effective_ocr_quota_limits
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,11 @@ def _today() -> str:
 
 def _is_user_exceeded(status: dict) -> bool:
     limit = int(status.get("limit") or 0)
-    return limit > 0 and int(status.get("used") or 0) > limit
+    monthly_limit = int(status.get("monthly_limit") or 0)
+    return (
+        (limit > 0 and int(status.get("used") or 0) > limit)
+        or (monthly_limit > 0 and int(status.get("monthly_used") or 0) > monthly_limit)
+    )
 
 
 def _is_global_exceeded(status: dict) -> bool:
@@ -65,20 +70,46 @@ async def _count_usage(
         return 0
 
 
+async def _count_usage_since(
+    db: AsyncSession,
+    engine: str,
+    start_day: str,
+    user_id: str | None = None,
+) -> int:
+    try:
+        stmt = select(func.count()).select_from(OcrUsageLog).where(
+            OcrUsageLog.engine == engine,
+            OcrUsageLog.usage_day >= start_day,
+            OcrUsageLog.status.in_(COUNTED_STATUSES),
+        )
+        if user_id:
+            stmt = stmt.where(OcrUsageLog.user_id == user_id)
+        return int((await db.execute(stmt)).scalar() or 0)
+    except (ProgrammingError, OperationalError) as e:
+        logger.warning("ocr_usage_log 月度查询失败，降级为 0: %s", e)
+        return 0
+
+
 async def get_ocr_quota_status(db: AsyncSession, user_id: str, engine: str) -> dict:
     engine = (engine or "").lower()
     if not is_paid_ocr_engine(engine):
         return {"limited": False}
 
     day = _today()
-    user_limit = max(int(settings.OCR_DAILY_USER_LIMIT or 0), 0)
+    month_start = f"{day[:8]}01"
+    # Uses OCR_DAILY_USER_LIMIT as the default when no user usage plan overrides it.
+    quota_limits = await get_effective_ocr_quota_limits(db, user_id)
+    user_limit = max(int(quota_limits.get("daily_limit") or 0), 0)
+    monthly_limit = max(int(quota_limits.get("monthly_limit") or 0), 0)
     global_limit = max(int(settings.OCR_DAILY_GLOBAL_LIMIT or 0), 0)
     user_used = await _count_usage(db, engine, day, user_id=user_id)
+    monthly_used = await _count_usage_since(db, engine, month_start, user_id=user_id)
     global_used = await _count_usage(db, engine, day)
 
     user_remaining = None if user_limit == 0 else max(user_limit - user_used, 0)
+    monthly_remaining = None if monthly_limit == 0 else max(monthly_limit - monthly_used, 0)
     global_remaining = None if global_limit == 0 else max(global_limit - global_used, 0)
-    limited = (user_remaining == 0) or (global_remaining == 0)
+    limited = (user_remaining == 0) or (monthly_remaining == 0) or (global_remaining == 0)
     message = ""
     if limited:
         message = "今日高精度 OCR 额度已用完，请切换极速识别或明天再试"
@@ -88,9 +119,15 @@ async def get_ocr_quota_status(db: AsyncSession, user_id: str, engine: str) -> d
         "used": user_used,
         "limit": user_limit,
         "remaining": user_remaining,
+        "monthly_used": monthly_used,
+        "monthly_limit": monthly_limit,
+        "monthly_remaining": monthly_remaining,
         "global_used": global_used,
         "global_limit": global_limit,
         "global_remaining": global_remaining,
+        "plan_code": quota_limits.get("plan_code"),
+        "plan_name": quota_limits.get("plan_name"),
+        "quota_source": quota_limits.get("source"),
         "message": message,
     }
 

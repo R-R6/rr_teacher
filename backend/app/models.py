@@ -43,6 +43,36 @@ class User(Base):
     questions = relationship("Question", back_populates="author", lazy="dynamic")
     papers = relationship("Paper", back_populates="author", lazy="dynamic")
     ocr_records = relationship("OcrRecord", back_populates="user", lazy="dynamic")
+    usage_plan = relationship(
+        "UserUsagePlan",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class UserUsagePlan(Base):
+    """Per-user plan and OCR quota overrides managed from admin console."""
+    __tablename__ = "user_usage_plan"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_usage_plan_user"),
+    )
+
+    id = Column(CHAR(32), primary_key=True, default=gen_uuid, comment="Plan profile ID")
+    user_id = Column(CHAR(32), ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    plan_code = Column(String(50), default="default", nullable=False, comment="Plan code")
+    plan_name = Column(String(100), nullable=True, comment="Display plan name")
+    daily_ocr_limit = Column(Integer, nullable=True, comment="Daily paid OCR quota override")
+    monthly_ocr_limit = Column(Integer, nullable=True, comment="Monthly paid OCR quota override")
+    status = Column(String(20), default="active", nullable=False, comment="active/paused/expired")
+    source = Column(String(50), default="manual", nullable=False, comment="manual/seed/payment")
+    starts_at = Column(DateTime, nullable=True, comment="Plan start time")
+    expires_at = Column(DateTime, nullable=True, comment="Plan expiry time")
+    notes = Column(Text, nullable=True, comment="Admin notes")
+    created_at = Column(DateTime, default=datetime.now, comment="Create time")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="Update time")
+
+    user = relationship("User", back_populates="usage_plan")
 
 
 # ────────────────────────── 题目分类标签 ──────────────────────────

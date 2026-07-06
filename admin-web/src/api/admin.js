@@ -77,6 +77,12 @@ export const adminApi = {
   getUserDetail(id) {
     return apiClient.get(`/admin/users/${id}`)
   },
+  getUserOcrUsage(id, params) {
+    return apiClient.get(withParams(`/admin/users/${id}/ocr-usage`, params))
+  },
+  updateUserQuotaProfile(id, payload) {
+    return apiClient.put(`/admin/users/${id}/quota-profile`, payload)
+  },
   getOcrUsage(days = 7) {
     return apiClient.get(withParams('/admin/cost/ocr-usage', { days }))
   },
