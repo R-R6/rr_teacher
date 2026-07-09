@@ -15,6 +15,7 @@
           <text v-else class="avatar-text">{{ (user?.nickname || user?.username || '?')[0] }}</text>
         </view>
         <view class="user-info">
+          <text class="user-greeting">你好</text>
           <text class="user-name">{{ user?.nickname || user?.username || '未登录' }}</text>
           <view class="user-role" :class="user?.role">
             {{ user?.role === 'teacher' ? '教师' : '学生' }}
@@ -24,68 +25,98 @@
         <text class="edit-arrow">编辑 ›</text>
       </view>
 
-      <!-- 统计 -->
-      <view class="stats-card">
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.questions }}</text>
-          <text class="stat-label">累计题目</text>
+      <!-- 种子计划：主转化区 -->
+      <view class="billing-hero" @tap="openSeedOffer">
+        <view class="billing-hero-glow"></view>
+        <view class="billing-hero-top">
+          <text class="billing-hero-kicker">首批老师专属</text>
+          <text class="billing-hero-badge">限前 50 名</text>
         </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.papers }}</text>
-          <text class="stat-label">累计试卷</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.ocr }}</text>
-          <text class="stat-label">OCR 记录</text>
-        </view>
-      </view>
-
-      <!-- OCR 额度卡片 -->
-      <view v-if="quota.limit > 0" class="quota-card">
-        <view class="quota-header">
-          <text class="quota-title">今日 OCR 额度</text>
-          <text class="quota-date">{{ today }}</text>
-        </view>
-        <view class="quota-progress-wrap">
-          <view class="quota-bar-bg">
-            <view class="quota-bar-fill" :style="{ width: quotaPercent + '%', background: quotaColor }"></view>
+        <text class="billing-hero-title">种子计划 · 终身权益</text>
+        <text class="billing-hero-desc">前 10 名免费开通，第 11-50 名 9.9 元终身资格</text>
+        <view class="billing-hero-footer">
+          <view class="billing-hero-price">
+            <text class="billing-hero-price-label">低至</text>
+            <text class="billing-hero-price-symbol">¥</text>
+            <text class="billing-hero-price-num">9.9</text>
+            <text class="billing-hero-price-tail">终身</text>
           </view>
-          <text class="quota-count" :style="{ color: quotaColor }">{{ quota.used }}<text class="quota-total"> / {{ quota.limit }}</text></text>
-        </view>
-        <text class="quota-hint">{{ quotaHint }}</text>
-      </view>
-
-      <!-- 种子计划入口 -->
-      <view class="billing-card" @tap="openSeedOffer">
-        <view class="billing-icon">
-          <view class="billing-icon-core"></view>
-        </view>
-        <view class="billing-copy">
-          <view class="billing-title-row">
-            <text class="billing-title">种子计划 · 终身权益</text>
-            <text class="billing-badge">限前 50 名</text>
+          <view class="billing-hero-cta">
+            <text>立即查看</text>
           </view>
-          <text class="billing-desc">前 10 名免费，第 11-50 名 9.9 元终身开通</text>
         </view>
-        <text class="billing-arrow">›</text>
       </view>
 
-      <!-- 关于小睿化学 -->
-      <view class="intro-card">
-        <text class="intro-title">🧪 关于小睿化学</text>
-        <text class="intro-body">高中化学教学辅助小程序，拍照识别题目、智能组卷导出，老师备课学生的刷题好帮手。</text>
-        <text class="intro-version">v1.0.0</text>
+      <!-- 使用数据：次要信息 -->
+      <view class="usage-section">
+        <view v-if="quota.limit > 0" class="usage-block">
+          <text class="usage-block-title">今日用量</text>
+          <view class="quota-card">
+            <view class="quota-header">
+              <view class="quota-title-wrap">
+                <text class="quota-title">{{ quotaTitle }}</text>
+                <text class="quota-subtitle">{{ quotaSubtitle }}</text>
+              </view>
+              <text class="quota-date">{{ today }}</text>
+            </view>
+            <view class="quota-progress-wrap">
+              <view class="quota-bar-bg">
+                <view class="quota-bar-fill" :style="{ width: quotaPercent + '%', background: quotaColor }"></view>
+              </view>
+              <text class="quota-count" :style="{ color: quotaColor }">{{ quota.used }}<text class="quota-total"> / {{ quota.limit }}</text></text>
+            </view>
+            <text class="quota-hint">{{ quotaHint }}</text>
+          </view>
+        </view>
+
+        <view class="usage-block">
+          <text class="usage-block-title">累计数据</text>
+          <view class="stats-card">
+            <view class="stat-item">
+              <text class="stat-num">{{ stats.questions }}</text>
+              <text class="stat-label">累计题目</text>
+            </view>
+            <view class="stat-divider"></view>
+            <view class="stat-item">
+              <text class="stat-num">{{ stats.papers }}</text>
+              <text class="stat-label">累计试卷</text>
+            </view>
+            <view class="stat-divider"></view>
+            <view class="stat-item">
+              <text class="stat-num">{{ stats.ocr }}</text>
+              <text class="stat-label">OCR 记录</text>
+            </view>
+          </view>
+        </view>
       </view>
 
-      <!-- 退出登录 -->
-      <view class="logout-btn" @tap="handleLogout">
-        <text>退出登录</text>
+      <!-- 辅助操作区 -->
+      <view class="secondary-section">
+        <view class="menu-row" @tap="showAbout = true">
+          <text class="menu-label">关于小睿化学</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-row logout-row" @tap="handleLogout">
+          <text class="menu-label logout-label">退出登录</text>
+        </view>
       </view>
+
+      <text class="page-footer">小睿化学 v1.0.0</text>
 
       <view style="height: 40rpx;"></view>
     </scroll-view>
+
+    <!-- 关于弹窗 -->
+    <view v-if="showAbout" class="sheet-mask" @tap="showAbout = false">
+      <view class="sheet about-sheet" @tap.stop>
+        <view class="sheet-handle"></view>
+        <text class="sheet-title">关于小睿化学</text>
+        <text class="about-body">高中化学教学辅助小程序，拍照识别题目、智能组卷导出，老师备课学生的刷题好帮手。</text>
+        <view class="sheet-btn-primary" @tap="showAbout = false">
+          <text class="btn-text">知道了</text>
+        </view>
+      </view>
+    </view>
 
     <!-- 编辑个人资料弹窗 -->
     <view v-if="showEditModal" class="sheet-mask" @tap="showEditModal = false">
@@ -126,8 +157,9 @@ export default {
       navHeight: 0,
       user: null,
       stats: { questions: 0, papers: 0, ocr: 0 },
-      quota: { used: 0, limit: 0, remaining: 0 },
+      quota: { used: 0, limit: 0, remaining: 0, engineId: '', engineName: '', engineLabel: '' },
       showEditModal: false,
+      showAbout: false,
       editNickname: '',
       editAvatarUrl: '',
     }
@@ -137,6 +169,16 @@ export default {
       const d = new Date()
       return `${d.getMonth() + 1}月${d.getDate()}日`
     },
+    quotaTitle() {
+      if (!this.quota.engineLabel) return '今日 OCR 额度'
+      return `${this.quota.engineLabel} · 今日额度`
+    },
+    quotaSubtitle() {
+      if (this.quota.engineName) return this.quota.engineName
+      if (this.quota.engineId === 'doubao_vision') return '豆包视觉 · 复杂题结构化识别'
+      if (this.quota.engineId === 'pix2text_online') return 'Pix2Text · 公式高精度识别'
+      return '拍题识别服务'
+    },
     quotaPercent() {
       if (!this.quota.limit) return 0
       return Math.min(Math.round((this.quota.used / this.quota.limit) * 100), 100)
@@ -144,7 +186,7 @@ export default {
     quotaColor() {
       if (this.quotaPercent >= 100) return '#EF4444'
       if (this.quotaPercent >= 80) return '#F59E0B'
-      return '#10B981'
+      return '#6366F1'
     },
     quotaHint() {
       const r = this.quota.remaining
@@ -200,7 +242,12 @@ export default {
             used: paid.quota.used || 0,
             limit: paid.quota.limit || 0,
             remaining: paid.quota.remaining,
+            engineId: paid.id || '',
+            engineName: paid.name || '',
+            engineLabel: paid.label || '',
           }
+        } else {
+          this.quota = { used: 0, limit: 0, remaining: 0, engineId: '', engineName: '', engineLabel: '' }
         }
       } catch (e) {}
     },
@@ -281,70 +328,205 @@ export default {
 .nav-title { font-size: 34rpx; font-weight: 700; color: #fff; }
 .scroll-area { height: 100vh; }
 .user-card {
-  margin: 24rpx;
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  margin: 24rpx 24rpx 20rpx;
+  background: #fff;
   border-radius: 24rpx;
-  padding: 40rpx;
+  padding: 32rpx 36rpx;
   display: flex;
   align-items: center;
   gap: 28rpx;
-  color: #fff;
+  color: #1F2937;
+  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.06);
+  border: 1rpx solid #EEF2FF;
+  &:active { background: #FAFAFF; }
 }
 .avatar {
   width: 100rpx;
   height: 100rpx;
-  background: rgba(255,255,255,0.2);
+  background: #F3F4F6;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  border: 3rpx solid #EDE9FE;
 }
 .avatar-img { width: 100rpx; height: 100rpx; border-radius: 50%; }
-.avatar-text { font-size: 40rpx; font-weight: 700; color: #fff; }
-.user-name { display: block; font-size: 32rpx; font-weight: 700; margin-bottom: 4rpx; }
+.avatar-text { font-size: 40rpx; font-weight: 700; color: #7C3AED; }
+.user-greeting {
+  display: block;
+  font-size: 22rpx;
+  color: #9CA3AF;
+  margin-bottom: 2rpx;
+}
+.user-name { display: block; font-size: 34rpx; font-weight: 700; color: #111827; margin-bottom: 8rpx; }
 .user-role {
   display: inline-block;
   font-size: 22rpx;
   padding: 4rpx 14rpx;
   border-radius: 8rpx;
-  background: rgba(255,255,255,0.2);
+  background: #F3E8FF;
+  color: #7C3AED;
   margin-bottom: 4rpx;
 }
-.user-school { display: block; font-size: 22rpx; opacity: 0.8; }
-.edit-arrow { font-size: 24rpx; color: rgba(255,255,255,0.7); flex-shrink: 0; }
+.user-school { display: block; font-size: 22rpx; color: #6B7280; }
+.edit-arrow { font-size: 24rpx; color: #9CA3AF; flex-shrink: 0; }
 
-/* 统计 */
+/* 种子计划主转化区 */
+.billing-hero {
+  position: relative;
+  margin: 0 24rpx 32rpx;
+  padding: 32rpx 28rpx 28rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2563EB 0%, #4F46E5 45%, #7C3AED 100%);
+  box-shadow: 0 16rpx 40rpx rgba(37, 99, 235, 0.25);
+  &:active { opacity: 0.92; }
+}
+.billing-hero-glow {
+  position: absolute;
+  top: -60rpx;
+  right: -40rpx;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+.billing-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.billing-hero-kicker {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 1rpx;
+}
+.billing-hero-badge {
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+.billing-hero-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+.billing-hero-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.5;
+}
+.billing-hero-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+}
+.billing-hero-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4rpx;
+}
+.billing-hero-price-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.75);
+  margin-right: 4rpx;
+}
+.billing-hero-price-symbol {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #FDE68A;
+}
+.billing-hero-price-num {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #FDE68A;
+  line-height: 1;
+}
+.billing-hero-price-tail {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.88);
+  margin-left: 4rpx;
+}
+.billing-hero-cta {
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.12);
+  text {
+    font-size: 26rpx;
+    font-weight: 700;
+    color: #6D28D9;
+  }
+}
+
+/* 使用数据区 */
+.usage-section {
+  margin: 0 24rpx 28rpx;
+}
+.usage-block {
+  & + & {
+    margin-top: 28rpx;
+  }
+}
+.usage-block-title {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #9CA3AF;
+  letter-spacing: 1rpx;
+  margin-bottom: 12rpx;
+  padding-left: 4rpx;
+}
 .stats-card {
   display: flex;
   background: #fff;
-  border-radius: 20rpx;
-  margin: 0 24rpx 24rpx;
-  padding: 32rpx 0;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  border-radius: 16rpx;
+  padding: 28rpx 0;
+  border: 1rpx solid #E5E7EB;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
 }
 .stat-item { flex: 1; text-align: center; }
-.stat-num { display: block; font-size: 36rpx; font-weight: 700; color: #8B5CF6; }
-.stat-label { display: block; font-size: 22rpx; color: #9CA3AF; margin-top: 4rpx; }
-.stat-divider { width: 1rpx; background: #F3F4F6; }
+.stat-num { display: block; font-size: 32rpx; font-weight: 700; color: #374151; }
+.stat-label { display: block; font-size: 22rpx; color: #9CA3AF; margin-top: 6rpx; }
+.stat-divider { width: 1rpx; background: #E5E7EB; align-self: stretch; margin: 8rpx 0; }
 
-/* OCR 额度卡片 */
+/* OCR 额度卡片 — 方案 C 中性灰白卡 */
 .quota-card {
-  margin: 0 24rpx 24rpx;
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 28rpx 28rpx 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx 24rpx 20rpx;
+  border: 1rpx solid #E5E7EB;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
 }
 .quota-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 16rpx;
   margin-bottom: 20rpx;
 }
-.quota-title { font-size: 28rpx; font-weight: 600; color: #1F2937; }
-.quota-date { font-size: 24rpx; color: #9CA3AF; }
+.quota-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.quota-title { display: block; font-size: 28rpx; font-weight: 700; color: #374151; line-height: 1.35; }
+.quota-subtitle { display: block; margin-top: 6rpx; font-size: 22rpx; color: #6B7280; line-height: 1.4; }
+.quota-date { font-size: 24rpx; color: #9CA3AF; flex-shrink: 0; padding-top: 2rpx; }
 .quota-progress-wrap {
   display: flex;
   align-items: center;
@@ -371,113 +553,56 @@ export default {
   margin-top: 12rpx;
 }
 
-/* 种子计划入口 */
-.billing-card {
-  margin: 0 24rpx 24rpx;
+/* 辅助操作区 */
+.secondary-section {
+  margin: 0 24rpx;
   background: #fff;
-  border-radius: 20rpx;
-  padding: 28rpx;
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
-  border: 2rpx solid #EEF2FF;
-  &:active { background: #F8FAFF; }
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
 }
-.billing-icon {
-  width: 76rpx;
-  height: 76rpx;
-  border-radius: 22rpx;
-  background: linear-gradient(135deg, #4A6CF7, #8B5CF6);
+.menu-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 24rpx;
+  &:active { background: #F9FAFB; }
+  & + & {
+    border-top: 1rpx solid #F3F4F6;
+  }
+}
+.menu-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+.menu-arrow {
+  font-size: 32rpx;
+  color: #D1D5DB;
+}
+.logout-row {
   justify-content: center;
-  flex-shrink: 0;
+  &:active { background: #FEF2F2; }
 }
-.billing-icon-core {
-  width: 32rpx;
-  height: 32rpx;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 10rpx rgba(255,255,255,0.22);
+.logout-label {
+  color: #EF4444;
+  font-weight: 500;
 }
-.billing-copy {
-  flex: 1;
-  min-width: 0;
-}
-.billing-title-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  flex-wrap: wrap;
-}
-.billing-title {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1F2937;
-}
-.billing-badge {
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-  background: #FEF3C7;
-  color: #B45309;
-  font-size: 20rpx;
-  font-weight: 600;
-}
-.billing-desc {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #6B7280;
-  line-height: 1.45;
-}
-.billing-arrow {
-  font-size: 36rpx;
-  color: #9CA3AF;
-  flex-shrink: 0;
-}
-
-/* 关于小睿化学 */
-.intro-card {
-  margin: 0 24rpx 24rpx;
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 28rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
-}
-.intro-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1F2937;
-  margin-bottom: 12rpx;
-}
-.intro-body {
-  display: block;
-  font-size: 26rpx;
-  color: #4B5563;
-  line-height: 1.7;
-}
-.intro-version {
+.page-footer {
   display: block;
   text-align: center;
   font-size: 22rpx;
-  color: #9CA3AF;
-  margin-top: 16rpx;
+  color: #C4C9D4;
+  margin: 28rpx 24rpx 0;
 }
-
-/* 退出登录 */
-.logout-btn {
-  margin: 16rpx 24rpx 0;
-  padding: 28rpx 0;
-  text-align: center;
-  background: #fff;
-  border-radius: 16rpx;
-  color: #EF4444;
-  font-size: 30rpx;
-  font-weight: 500;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
-  &:active { background: #FEF2F2; }
+.about-body {
+  display: block;
+  font-size: 28rpx;
+  color: #4B5563;
+  line-height: 1.7;
+  margin-bottom: 28rpx;
+}
+.about-sheet .sheet-title {
+  margin-bottom: 20rpx;
 }
 
 /* 编辑弹窗 */

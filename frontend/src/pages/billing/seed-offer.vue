@@ -2,9 +2,7 @@
   <view class="seed-page">
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-content">
-        <view class="back-hit" @tap="goBack">
-          <text class="back-icon">‹</text>
-        </view>
+        <view class="nav-back" @tap="goBack">‹</view>
         <text class="nav-title">种子计划</text>
       </view>
     </view>
@@ -361,21 +359,21 @@ export default {
   height: 88rpx;
   display: flex;
   align-items: center;
-  padding: 0 24rpx;
+  padding: 0 32rpx;
 }
-.back-hit {
-  width: 72rpx;
-  height: 72rpx;
+.nav-back {
+  min-width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  &:active { background: #F3F4F6; }
-}
-.back-icon {
-  font-size: 52rpx;
+  justify-content: flex-start;
+  margin-left: -16rpx;
+  padding-right: 8rpx;
+  font-size: 48rpx;
+  font-weight: 600;
   color: #1F2937;
   line-height: 1;
+  &:active { opacity: 0.65; }
 }
 .nav-title {
   font-size: 34rpx;

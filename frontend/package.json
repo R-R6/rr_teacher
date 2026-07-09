@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
-    "build:mp-weixin": "uni build -p mp-weixin && cp -r cloudfunctions dist/build/mp-weixin/cloudfunctions 2>/dev/null && node -e \"const f=require('fs'),p='dist/build/mp-weixin/project.config.json',c=JSON.parse(f.readFileSync(p));if(!c.cloudfunctionRoot){c.cloudfunctionRoot='cloudfunctions/';f.writeFileSync(p,JSON.stringify(c,null,2))}\" || true",
+    "build:mp-weixin": "node ../scripts/build_mp_weixin.mjs",
     "sync:cloud": "cp -r cloudfunctions dist/build/mp-weixin/cloudfunctions"
   },
   "dependencies": {
