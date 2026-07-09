@@ -1,3 +1,5 @@
+> 本项目 Figma 工作流说明，介绍已安装的 Figma Skills、推荐工作流和接入 MCP 的前置条件。
+
 # Figma Workflow
 
 本项目已安装以下 OpenAI 官方技能，可用于产品设计到代码实现的完整链路：

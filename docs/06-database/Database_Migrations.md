@@ -1,3 +1,5 @@
+> 数据库迁移治理指南，说明如何使用 Alembic 管理 schema 变更、本地与生产环境差异、迁移命令、部署顺序和回滚策略。
+
 # Database Migration Guide
 
 Last updated: 2026-06-25

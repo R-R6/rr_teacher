@@ -50,8 +50,8 @@ logs/
 docs/.obsidian/workspace.json
 
 # 敏感文件
-docs/SecretKey.csv
-docs/CloudRun_Env_Vars.local.md
+docs/**/SecretKey.csv
+docs/**/CloudRun_Env_Vars.local.md
 
 # 测试文件
 ocr-service/test_chem.jpg

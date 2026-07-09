@@ -1,3 +1,5 @@
+> 说明如何创建 Codex skill，以及用 cursor-commander skill 实现 Codex 指挥、Cursor 执行的人工多 agent 工作流。
+
 # Codex Skills 与 Cursor 指挥官工作流
 
 这份文档说明两件事：
